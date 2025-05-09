@@ -1,0 +1,54 @@
+trajectory_weights_params:
+  trajectory_name:
+    type: string
+    default_value: "sine_wave_configuration_space"
+    description: "End-effector name."
+    validation:
+      one_of<>: [["sine_wave_configuration_space", "sine_wave_cartesian_space", "generic_trajectory"]]
+  moving_joint_names:
+    type: string_array
+    description: "list of active joint names used by the controller."
+    validation:
+      not_empty<>: []
+  mask:
+    type: bool_array
+    default_value: [True, True, True, True, True, True]
+    description: "Mask for the cartesian space sine wave DoF to update from the Inverse Kinematic."
+  ee_frame_name:
+    type: string
+    description: "End-effector name."
+    validation:
+      not_empty<>: []
+  w_q:
+    type: double_array
+    default_value: [1.0]
+    description: "Weights for joint configuration cost."
+  w_qdot:
+    type: double_array
+    default_value: [0.1]
+    description: "Weights for joint velocity cost."
+  w_qddot:
+    type: double_array
+    default_value: [0.0001]
+    description: "Weights for joint acceleration cost."
+  w_robot_effort:
+    type: double_array
+    default_value: [0.001]
+    description: "Weights for control cost."
+  w_pose:
+    type: double_array
+    default_value: [0.1]
+    description: "Weights for end-effector position cost."
+  sine_wave:
+    period:
+      type: double_array
+      default_value: [4.0]
+      description: "Period of the sinusoid in seconds."
+    scale_duration:
+      type: double_array
+      default_value: [1.0]
+      description: "Time for the Quintic polynomial to go from 0 to default_value."
+    amplitude:
+      type: double_array
+      default_value: [0.2]
+      description: "Amplitude of the sinusoid."
