@@ -7,10 +7,6 @@ from setuptools import find_packages, setup
 package_name = "panda_deburring"
 project_source_dir = Path(__file__).parent
 
-module_name = "test_trajectroy_publisher_parameters"
-yaml_file = "panda_deburring/test_trajectroy_publisher_parameters.yaml"
-generate_parameter_module(module_name, yaml_file)
-
 
 def get_files(dir: Path, pattern: str) -> List[str]:
     return [x.as_posix() for x in (dir).glob(pattern) if x.is_file()]
@@ -42,9 +38,5 @@ setup(
     description="Deburring task implementation for Panda robot.",
     license="BSD",
     tests_require=["pytest"],
-    entry_points={
-        "console_scripts": [
-            "test_trajectroy_publisher = panda_deburring.test_trajectroy_publisher:main"
-        ],
-    },
+    entry_points={},
 )
