@@ -67,6 +67,7 @@ pyttroller_python_params:
     Kv: [100.0, 100.0, 100.0]
     oPc_offset: [0.0, 0.0, 0.0]
     contact_type: "3D"
+    solver_nthreads: 1
   trajectory_params:
     robot_configuration: [0.0, 0.580695, -0.000001, -2.594214, -0.000008, 3.17491, 1.571726]
     robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

@@ -33,6 +33,8 @@ class OCPParamsCrocoForceFeedback(OCPParamsBaseCroco):
 
     contact_type: str = None
 
+    solver_nthreads: int = 1
+
     def __post_init__(self):
         super().__post_init__()
 
@@ -101,6 +103,7 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
             self._running_model_list,
             self._terminal_model,
         )
+        self._problem.nthreads = self._ocp_params.solver_nthreads
         # Create solver + callbacks
         self._solver = mim_solvers.SolverCSQP(self._problem)
 
