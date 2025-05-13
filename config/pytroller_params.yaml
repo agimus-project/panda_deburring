@@ -31,7 +31,7 @@ agimus_pytroller:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInput
       python_function_name: mpc_input_cb
-pyttroller_python_params:
+pytroller_python_params:
   robot_model_params:
     moving_joint_names:
       - fer_joint1

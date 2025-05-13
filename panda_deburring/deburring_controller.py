@@ -34,7 +34,7 @@ class ControllerImpl(AgimusControllerImplBase):
     def __init__(self, robot_description: str) -> None:
         package_share_directory = Path(get_package_share_directory("panda_deburring"))
         config_file = package_share_directory / "config" / "pytroller_params.yaml"
-        cfg = yaml.safe_load(config_file.read_text())["pyttroller_python_params"]
+        cfg = yaml.safe_load(config_file.read_text())["pytroller_python_params"]
         # Convert all lists of numbers to numpy arrays
         for sub_cfg_key, sub_cfg in cfg.items():
             if sub_cfg_key == "dt_factor_n_seq":
@@ -217,5 +217,6 @@ class ControllerImpl(AgimusControllerImplBase):
             # return self._u_zeros
             return state
 
+        print(time.time() - now)
         return ocp_res.states[1]
         # return ocp_res.feed_forward_terms[0] - tau_g
