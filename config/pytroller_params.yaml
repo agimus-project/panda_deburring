@@ -32,11 +32,16 @@ agimus_pytroller:
       - fer_joint5/effort
       - fer_joint6/effort
       - fer_joint7/effort
-    subscribed_topics: ["mpc_input"]
+    subscribed_topics: ["apriltag"]
     mpc_input:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInput
       python_function_name: mpc_input_cb
+
+    apriltag:
+      topic_name: "/apriltag_pose"
+      topic_type: geometry_msgs/msg/PoseStamped
+      python_function_name: apriltag_cb
 
     pytroller_python_params:
       robot_model_params:
@@ -68,7 +73,7 @@ agimus_pytroller:
         x_reg_cost_weight: 1.0
         frame_translation_cost_weight: 10.0
         frame_rotation_cost_weight: 1.0
-        frame_velocity_weights: [1.0, 1.0, 2.0, 1.0, 1.0, 1.0]
+        frame_velocity_weights: [0.5, 0.5, 2.0, 0.8, 0.8, 0.8]
         frame_velocity_cost_weight: 1.0
         Kp: [150.0, 150.0, 150.0]
         Kv: [0.5, 0.5, 0.5]
@@ -78,13 +83,18 @@ agimus_pytroller:
       trajectory_params:
         robot_configuration: [0.0, 0.1865,0.0,-2.4,0.0, 2.5915, 0.7863]
         robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        w_robot_configuration: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-        w_robot_velocity: [0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2]
+        w_robot_configuration: [0.8, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+        w_robot_velocity: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
         w_robot_effort: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
         frame_of_interest: ati_mini45_measurement_reference
         frame_target_pose_quat: [0.923, -0.382, 0.0, 0.0]
-        frame_target_pose_position: [0.5, 0.0, 0.24]
-        frame_rotation_weights: [1.0, 1.0, 1.0]
-        frame_translation_weights: [6.0, 6.0, 0.0]
-        desired_force: [0.0, 0.0, -15.0]
-        desired_force_weights: [0.0, 0.0, 0.01]
+        frame_target_pose_position: [0.5, 0.0, 0.3]
+        frame_rotation_weights: [15.0, 15.0, 2.0]
+        frame_translation_weights: [40.0, 40.0, 0.0]
+        desired_force: [0.0, 0.0, -1.0]
+        desired_force_weights: [0.0, 0.0, 0.02]
+        # desired_force: [0.0, 0.0, 0.0]
+        # desired_force_weights: [0.0, 0.0, 0.0]
+      circle:
+        radius: 0.04
+        frequency: 0.1

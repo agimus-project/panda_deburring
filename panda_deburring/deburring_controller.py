@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+import copy
 
 import numpy as np
 import pinocchio as pin
@@ -28,6 +29,7 @@ from panda_deburring.ocp_croco_force_feedback import (
 from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
     WarmStartShiftPreviousSolutionForceFeedback,
 )
+from geometry_msgs.msg import PoseStamped
 
 
 class ControllerImpl(AgimusControllerImplBase):
@@ -86,6 +88,10 @@ class ControllerImpl(AgimusControllerImplBase):
         self.__create_traj_weight_point(cfg["trajectory_params"])
         for _ in range(self._ocp_params.horizon_size + 5):
             self.mpc.append_trajectory_point(self._the_point)
+        self._circle_params = cfg["circle"]
+        self._circle_center = cfg["trajectory_params"]["frame_target_pose_position"]
+        self._circle_frame = cfg["trajectory_params"]["frame_of_interest"]
+        self._circle_time = 0.0
 
         self._first_call = True
 
@@ -164,7 +170,22 @@ class ControllerImpl(AgimusControllerImplBase):
             point=traj_point, weights=traj_weights
         )
 
+    def __circle_point(self, t: float) -> None:
+        r = self._circle_params["radius"]
+        frequency = self._circle_params["frequency"]
+
+        x = np.cos(t * frequency * 2.0 * np.pi) * r
+        y = np.sin(t * frequency * 2.0 * np.pi) * r
+        circle = np.array([x, y, 0.0])
+        pose = self._circle_center + circle
+
+        self._the_point.point.end_effector_poses[self._circle_frame].translation = pose
+
+    def apriltag_cb(self, msg: PoseStamped) -> None:
+        self._circle_center[:2] = np.array([getattr(msg.pose.position, f) for f in "xy"])
+
     def on_update(self, state: np.array) -> np.array:
+        # return np.zeros(7)
         # state[-6:] = -state[-6:]
         # print(state[-4], flush=True)
         now = time.time()
@@ -218,7 +239,9 @@ class ControllerImpl(AgimusControllerImplBase):
             forces=pin.Force(force),
         )
 
-        self.mpc.append_trajectory_point(self._the_point)
+        self._circle_time += 0.002
+        self.__circle_point(self._circle_time)
+        self.mpc.append_trajectory_point(copy.deepcopy(self._the_point))
         ocp_res = self.mpc.run(initial_state=x0_traj_point, current_time_ns=now)
 
         if ocp_res is None:
@@ -228,6 +251,12 @@ class ControllerImpl(AgimusControllerImplBase):
         # print(time.time() - now)
         # return ocp_res.states[1]
 
-        tau_g = pin.rnea(self._robot_models.robot_model, self._robot_data, q, np.zeros(7), np.zeros(7))
+        tau_g = pin.rnea(
+            self._robot_models.robot_model,
+            self._robot_data,
+            q,
+            np.zeros(7),
+            np.zeros(7),
+        )
 
         return ocp_res.feed_forward_terms[0] - tau_g

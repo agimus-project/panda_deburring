@@ -14,6 +14,7 @@ from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
 )
+from launch_ros.actions import Node
 
 
 def launch_setup(
@@ -58,7 +59,20 @@ def launch_setup(
         }.items(),
     )
 
-    return [franka_robot_launch]
+    node = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        arguments=[
+            "--frame-id",
+            "tag36h11:0",
+            "--child-frame-id",
+            "circle",
+            "--y",
+            "-0.1"
+        ],
+    )
+
+    return [franka_robot_launch, node]
 
 
 def generate_launch_description():
