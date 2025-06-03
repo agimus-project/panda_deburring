@@ -22,6 +22,7 @@ from agimus_pytroller_py.agimus_pytroller_base import (
     ControllerImpl as AgimusControllerImplBase,
 )
 from ament_index_python.packages import get_package_share_directory
+from geometry_msgs.msg import PoseStamped
 
 from panda_deburring.ocp_croco_force_feedback import (
     OCPCrocoForceFeedback,

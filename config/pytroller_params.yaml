@@ -33,7 +33,7 @@ agimus_pytroller:
       - fer_joint5/effort
       - fer_joint6/effort
       - fer_joint7/effort
-    subscribed_topics: ["mpc_input"]
+    subscribed_topics: ["apriltag"]
     mpc_input:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
