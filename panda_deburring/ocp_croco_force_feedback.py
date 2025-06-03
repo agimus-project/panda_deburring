@@ -459,29 +459,37 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
                 ref_weighted_pt.point.end_effector_poses[ee_name].rotation
             )
 
-            if self._solver.problem.runningModels[i].differential.with_force_cost:
-                ee_names = list(iter(ref_weighted_pt.weights.w_forces))
-                if len(ee_names) > 1:
-                    raise ValueError(
-                        "Only one end-effector force tracking reference is allowed."
-                    )
-                ee_name = ee_names[0]
+            ee_names = list(iter(ref_weighted_pt.weights.w_forces))
+            if len(ee_names) > 1:
+                raise ValueError(
+                    "Only one end-effector force tracking reference is allowed."
+                )
+            ee_name = ee_names[0]
+            desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name]
 
-                ee_id = self._robot_models.robot_model.getFrameId(ee_name)
-                if self._force_mask is not None:
-                    desired_force = np.asarray(
-                        ref_weighted_pt.point.forces[ee_name].linear[self._force_mask]
-                    )
-                    desired_force_weights = np.asarray(
-                        ref_weighted_pt.weights.w_forces[ee_name][self._force_mask]
-                    )
-                else:
-                    desired_force = ref_weighted_pt.point.forces[ee_name].linear
-                    desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name]
-                self._solver.problem.runningModels[i].differential.f_des = desired_force
+            # If weights are non zero, assume robot expects to be in contact in this state
+            if np.sum(np.abs(desired_force_weights)) > 1e-9:
+                self._solver.problem.runningModels[i].differential.active_contact = True
+                self._solver.problem.runningModels[
+                    i
+                ].differential.with_force_cost = True
+                self._solver.problem.runningModels[
+                    i
+                ].differential.f_des = ref_weighted_pt.point.forces[ee_name].linear
                 self._solver.problem.runningModels[
                     i
                 ].differential.f_weight = desired_force_weights
+            else:
+                self._solver.problem.runningModels[
+                    i
+                ].differential.active_contact = False
+                self._solver.problem.runningModels[
+                    i
+                ].differential.with_force_cost = False
+                self._solver.problem.runningModels[i].differential.f_des = np.zeros(3)
+                self._solver.problem.runningModels[i].differential.f_weight = np.zeros(
+                    3
+                )
 
         ref_weighted_pt = reference_weighted_trajectory[-1]
 
@@ -532,25 +540,28 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
             ref_weighted_pt.point.end_effector_poses[ee_name].rotation
         )
 
-        if self._solver.problem.terminalModel.differential.with_force_cost:
-            ee_names = list(iter(ref_weighted_pt.weights.w_forces))
-            if len(ee_names) > 1:
-                raise ValueError(
-                    "Only one end-effector force tracking reference is allowed."
-                )
-            ee_name = ee_names[0]
-
-            if self._force_mask is not None:
-                desired_force = np.asarray(
-                    ref_weighted_pt.point.forces[ee_name].linear[self._force_mask]
-                )
-                desired_force_weights = np.asarray(
-                    ref_weighted_pt.weights.w_forces[ee_name][self._force_mask]
-                )
-            else:
-                desired_force = ref_weighted_pt.point.forces[ee_name].linear
-                desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name]
-            self._solver.problem.terminalModel.differential.f_des = desired_force
-            self._solver.problem.terminalModel.differential.f_weight = (
-                desired_force_weights
+        ee_names = list(iter(ref_weighted_pt.weights.w_forces))
+        if len(ee_names) > 1:
+            raise ValueError(
+                "Only one end-effector force tracking reference is allowed."
             )
+        ee_name = ee_names[0]
+        desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name][
+            self._force_mask
+        ]
+        # If weights are non zero, assume robot expects to be in contact in this state
+        if np.sum(np.abs(desired_force_weights)) > 1e-9:
+            self._solver.problem.terminalModel.differential.active_contact = True
+            self._solver.problem.terminalModel.differential.with_force_cost = True
+            self._solver.problem.terminalModel.differential.f_des = (
+                ref_weighted_pt.point.forces[ee_name].linear
+            )
+            # self._solver.problem.terminalModel.differential.f_weight = (
+            #     desired_force_weights
+            # )
+
+        else:
+            self._solver.problem.terminalModel.differential.active_contact = False
+            self._solver.problem.terminalModel.differential.with_force_cost = False
+            self._solver.problem.terminalModel.differential.f_des = np.zeros(3)
+            self._solver.problem.terminalModel.differential.f_weight = np.zeros(3)

@@ -1,6 +1,7 @@
 from agimus_demos_common.launch_utils import (
     generate_default_franka_args,
 )
+from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 from launch import LaunchContext, LaunchDescription
@@ -58,7 +59,25 @@ def launch_setup(
         }.items(),
     )
 
-    return [franka_robot_launch]
+    trajectory_publisher_params = (
+        PathJoinSubstitution(
+            [
+                FindPackageShare("panda_deburring"),
+                "config",
+                "trajectory_publisher_params.yaml",
+            ]
+        ),
+    )
+
+    trajectory_publisher_node = Node(
+        package="panda_deburring",
+        executable="trajectory_publisher",
+        name="trajectory_publisher_node",
+        output="screen",
+        parameters=[trajectory_publisher_params],
+    )
+
+    return [franka_robot_launch, trajectory_publisher_node]
 
 
 def generate_launch_description():

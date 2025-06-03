@@ -1,0 +1,107 @@
+trajectory_publisher:
+  trajectory_generator_name:
+    type: string
+    description: "Name of the trajectory generator to use."
+  update_frequency:
+    type: double
+    description: "Frequency [Hz] at which buffer points are updated."
+    default_value: 100.0
+    read_only: true
+    validation:
+      gt<>: [0.0]
+  n_buffer_points:
+    type: int
+    description: "Number of time points sent at once to the MPC buffer."
+    default_value: 10
+    read_only: true
+    validation:
+      gt<>: [0]
+  frame_of_interest:
+    type: string
+    description: "Name of a frame associated to contact point."
+    validation:
+      not_empty<>: []
+  initial_targets:
+    robot_configuration:
+      type: double_array
+      description: "Robot joint configuration [rad] used for state regularization."
+      validation:
+        not_empty<>: []
+    robot_velocity:
+      type: double_array
+      description: "Robot joint velocity [rad/s] used for state regularization."
+      validation:
+        not_empty<>: []
+    frame_rotation:
+      type: double_array
+      description: "Desired rotation of the `frame_of_interest` in quaternion."
+      validation:
+        custom_validators::check_valid_quaternion:
+        fixed_size<>: [4]
+    frame_translation:
+      type: double_array
+      description: "Desired position [m] of the `frame_of_interest` in world frame."
+      validation:
+        fixed_size<>: [3]
+    desired_force:
+      type: double_array
+      description: "Desired force [N] applied by `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+  weights:
+    robot_configuration:
+      type: double_array
+      description: "Weights associated to regularization around desired robot configuration."
+      validation:
+        not_empty<>: []
+        lower_element_bounds<>: [0.0]
+    robot_velocity:
+      type: double_array
+      description: "Weights associated to regularization around desired robot velocity."
+      validation:
+        not_empty<>: []
+        lower_element_bounds<>: [0.0]
+    robot_effort:
+      type: double_array
+      description: "Weights associated to regularization around gravity compensation torque."
+      validation:
+        not_empty<>: []
+        lower_element_bounds<>: [0.0]
+    frame_rotation:
+      type: double_array
+      description: "Weights associated to rotation of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+    frame_translation:
+      type: double_array
+      description: "Weights associated to pose of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+    desired_force:
+      type: double_array
+      description: "Weights associated to force applied by `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+  sanding_generator:
+    circle:
+      radius:
+        type: double
+        description: "Radius of the circle [m]"
+        default_value: 0.04
+        validation:
+          gt<>: [0.0]
+      frequency:
+        type: double
+        description: "Frequency [Hz] at which complete circle is drawn."
+        default_value: 0.1
+        validation:
+          gt<>: [0.0]
+    start_time:
+      type: double
+      description: "Time to wait [s] before starting to seek contact."
+      default_value: 5.0
+      validation:
+        gt_eq<>: [0.0]

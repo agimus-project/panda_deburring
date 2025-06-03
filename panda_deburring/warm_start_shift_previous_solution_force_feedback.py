@@ -9,6 +9,8 @@ shifts the previous solution by the amount of the first time step.
 
 When there is no previous solution, the warm start is calculated using an internal
 WarmStartReference object.
+
+Class adapted from https://github.com/agimus-project/agimus_controller/blob/humble-devel/agimus_controller/agimus_controller/warm_start_shift_previous_solution.py
 """
 
 import crocoddyl

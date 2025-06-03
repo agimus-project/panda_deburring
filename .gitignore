@@ -17,4 +17,4 @@ AMENT_IGNORE
 .vscode
 
 
-panda_deburring/test_trajectroy_publisher_parameters.py
+panda_deburring/trajectory_publisher_parameters.py
