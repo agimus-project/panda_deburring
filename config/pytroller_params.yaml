@@ -19,12 +19,12 @@ agimus_pytroller:
       - fer_joint5/velocity
       - fer_joint6/velocity
       - fer_joint7/velocity
-      # - ati_mini45/force.x
-      # - ati_mini45/force.y
-      # - ati_mini45/force.z
-      # - ati_mini45/torque.x
-      # - ati_mini45/torque.y
-      # - ati_mini45/torque.z
+      - ati_mini45/force.x
+      - ati_mini45/force.y
+      - ati_mini45/force.z
+      - ati_mini45/torque.x
+      - ati_mini45/torque.y
+      - ati_mini45/torque.z
     command_interfaces:
       - fer_joint1/effort
       - fer_joint2/effort
@@ -33,7 +33,7 @@ agimus_pytroller:
       - fer_joint5/effort
       - fer_joint6/effort
       - fer_joint7/effort
-    subscribed_topics: ["apriltag"]
+    subscribed_topics: ["mpc_input"]
     mpc_input:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray

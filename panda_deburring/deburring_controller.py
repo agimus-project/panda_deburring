@@ -136,7 +136,7 @@ class ControllerImpl(AgimusControllerImplBase):
 
     def on_update(self, state: np.array) -> np.array:
         # state[-6:] = -state[-6:]
-        state = np.concatenate((state, np.zeros(6)))
+        # state = np.concatenate((state, np.zeros(6)))
         now = time.time()
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv

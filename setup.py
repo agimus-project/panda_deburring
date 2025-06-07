@@ -32,6 +32,10 @@ setup(
             get_files(project_source_dir / "config", "*.yaml"),
         ),
         (
+            f"share/{package_name}/rviz",
+            get_files(project_source_dir / "rviz", "*.rviz"),
+        ),
+        (
             f"share/{package_name}/launch",
             get_files(project_source_dir / "launch", "*.launch.py"),
         ),
