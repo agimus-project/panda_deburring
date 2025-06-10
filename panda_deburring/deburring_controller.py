@@ -18,11 +18,8 @@ from agimus_controller.trajectory import (
 from agimus_controller.warm_start_reference import WarmStartReference
 from agimus_controller_ros.ros_utils import mpc_debug_data_to_msg
 from agimus_msgs.msg import MpcDebug, MpcInputArray
-from agimus_pytroller_py.agimus_pytroller_base import (
-    ControllerImpl as AgimusControllerImplBase,
-)
+from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import PoseStamped
 
 from panda_deburring.ocp_croco_force_feedback import (
     OCPCrocoForceFeedback,
@@ -33,7 +30,7 @@ from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
 )
 
 
-class ControllerImpl(AgimusControllerImplBase):
+class ControllerImpl(ControllerImplBase):
     def __init__(self, robot_description: str) -> None:
         self._topic_map = {}
         package_share_directory = Path(get_package_share_directory("panda_deburring"))
