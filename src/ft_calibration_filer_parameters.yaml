@@ -1,0 +1,74 @@
+ft_calibration_filter:
+  state_force_interfaces_names:
+    type: string_array
+    description: "Ordered list of names of state interfaces used to measure force from the sensor. Expected order force.xyz, torque.xyz"
+    read_only: true
+    validation:
+      fixed_size<>: 6
+  state_robot_position_interfaces_names:
+    type: string_array
+    description: "Ordered list of names of joints used to perform forward kinematics."
+    read_only: true
+    validation:
+      size_gt<>: 0
+  reference_interfaces_names:
+    type: string_array
+    default_value: []
+    description: "List of names of interfaces to declare as references."
+    read_only: true
+  moving_joint_names:
+    type: string_array
+    description: "Ordered list of names of joints kept in pinocchio model. The order must match `state_robot_position_interfaces_names`."
+    read_only: true
+    validation:
+      size_gt<>: 0
+  filtered_forces_interfaces_names:
+    type: string_array
+    description: "List of names of ordered force measurements after filtration. Expected order: force.xyz, torque.xyz."
+    read_only: true
+    validation:
+      fixed_size<>: 6
+  measurement_frame_id:
+    type: string
+    description: "Name of the frame used as a measurement reference."
+    read_only: true
+  bias_measurement_samples:
+    type: int
+    default_value: 50
+    description: "Number of samples used to estimate initial bias values."
+    read_only: true
+  gravity_vector:
+    type: double_array
+    default_value: [0.0, 0.0, 9.81]
+    description: "Gravity vector used to compute forces related to end effector mass."
+    read_only: true
+  calibration:
+    measurement_frame:
+      xyz:
+        type: double_array
+        default_value: [0.0, 0.0, 0.0]
+        description: "Calibrated offset [m] applied to the measurement reference frame."
+        read_only: true
+        validation:
+          fixed_size<>: [3]
+      rpy:
+        type: double_array
+        default_value: [0.0, 0.0, 0.0]
+        description: "Rotation offset [rad] applied to the measurement reference frame."
+        read_only: true
+        validation:
+          fixed_size<>: [3]
+    com:
+      xyz:
+        type: double_array
+        default_value: [0.0, 0.0, 0.0]
+        description: "Calibrated offset [m] between measurement frame and center of mass of the end effector."
+        read_only: true
+        validation:
+          fixed_size<>: [3]
+      mass:
+        type: double
+        description: "Calibrated mass after measurement frame of the FT sensor."
+        read_only: true
+        validation:
+          gt<>: [0.0]

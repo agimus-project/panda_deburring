@@ -1,0 +1,9 @@
+<library path="panda_deburring">
+    <class name="ft_calibration_filter/FTCalibrationFilter"
+          type="ft_calibration_filter::FTCalibrationFilter"
+          base_class_type="controller_interface::ChainableControllerInterface">
+    <description>
+        Sensor applying mass calibration to a force-torque sensor
+    </description>
+    </class>
+  </library>

@@ -32,7 +32,7 @@ def launch_setup(
         ),
     )
 
-    agimus_pytroller_names = ["agimus_pytroller"]
+    agimus_pytroller_names = ["agimus_pytroller", "ft_calibration_filter"]
 
     franka_robot_launch = generate_include_launch(
         "franka_common.launch.py",

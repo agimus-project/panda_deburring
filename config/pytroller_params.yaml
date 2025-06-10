@@ -1,3 +1,46 @@
+ft_calibration_filter:
+  ros__parameters:
+    type: ft_calibration_filter/FTCalibrationFilter
+    state_force_interfaces_names:
+      - ati_mini45/force.x
+      - ati_mini45/force.y
+      - ati_mini45/force.z
+      - ati_mini45/torque.x
+      - ati_mini45/torque.y
+      - ati_mini45/torque.z
+    state_robot_position_interfaces_names:
+      - fer_joint1/position
+      - fer_joint2/position
+      - fer_joint3/position
+      - fer_joint4/position
+      - fer_joint5/position
+      - fer_joint6/position
+      - fer_joint7/position
+    moving_joint_names:
+      - fer_joint1
+      - fer_joint2
+      - fer_joint3
+      - fer_joint4
+      - fer_joint5
+      - fer_joint6
+      - fer_joint7
+    filtered_forces_interfaces_names:
+      - agimus_pytroller/ati_mini45/force.x
+      - agimus_pytroller/ati_mini45/force.y
+      - agimus_pytroller/ati_mini45/force.z
+      - agimus_pytroller/ati_mini45/torque.x
+      - agimus_pytroller/ati_mini45/torque.y
+      - agimus_pytroller/ati_mini45/torque.z
+    measurement_frame_id: ati_mini45_measurement_reference
+    bias_measurement_samples: 50
+    gravity_vector: [0.0, 0.0, 9.81]
+    calibration:
+      measurement_frame:
+        xyz: [0.0, 0.0, 0.0]
+        rpy: [0.0, 0.0, 0.0]
+      com:
+        xyz: [0.0, 0.0, 0.0]
+        mass: 0.107
 agimus_pytroller:
   ros__parameters:
     type: agimus_pytroller/AgimusPytroller
@@ -19,12 +62,12 @@ agimus_pytroller:
       - fer_joint5/velocity
       - fer_joint6/velocity
       - fer_joint7/velocity
-      - ati_mini45/force.x
-      - ati_mini45/force.y
-      - ati_mini45/force.z
-      - ati_mini45/torque.x
-      - ati_mini45/torque.y
-      - ati_mini45/torque.z
+      - agimus_pytroller/ati_mini45/force.x
+      - agimus_pytroller/ati_mini45/force.y
+      - agimus_pytroller/ati_mini45/force.z
+      - agimus_pytroller/ati_mini45/torque.x
+      - agimus_pytroller/ati_mini45/torque.y
+      - agimus_pytroller/ati_mini45/torque.z
     command_interfaces:
       - fer_joint1/effort
       - fer_joint2/effort
@@ -33,6 +76,13 @@ agimus_pytroller:
       - fer_joint5/effort
       - fer_joint6/effort
       - fer_joint7/effort
+    reference_interfaces:
+      - ati_mini45/force.x
+      - ati_mini45/force.y
+      - ati_mini45/force.z
+      - ati_mini45/torque.x
+      - ati_mini45/torque.y
+      - ati_mini45/torque.z
     subscribed_topics: ["mpc_input"]
     mpc_input:
       topic_name: "mpc_input"
