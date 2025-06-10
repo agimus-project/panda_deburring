@@ -15,8 +15,10 @@ trajectory_publisher_node:
       robot_velocity: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
       robot_effort: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       frame_rotation: [0.0, 0.0, 0.0]
-      frame_translation: [40.0, 40.0, 0.0]
-      desired_force: [0.0, 0.0, 100.0]
+      frame_translation: [40.0, 40.0, 40.0]
+      frame_angular_velocity: [2., 2., 2.]
+      frame_linear_velocity: [3.125, 3.125, 3.125]
+      desired_force: [0.0, 0.0, 0.0]
     sanding_generator:
       circle:
         radius: 0.04

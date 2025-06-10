@@ -79,6 +79,18 @@ trajectory_publisher:
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
+    frame_angular_velocity:
+      type: double_array
+      description: "Weights associated to angular velocity of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+    frame_linear_velocity:
+      type: double_array
+      description: "Weights associated to linear velocity of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
     desired_force:
       type: double_array
       description: "Weights associated to force applied by `frame_of_interest`."
