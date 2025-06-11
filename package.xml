@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>panda_deburring</name>
+  <version>0.0.1</version>
+  <description>Deburring task implementation for Panda robot.</description>
+  <maintainer email="krzysztof.wojciechowski@laas.fr">maintainer</maintainer>
+
+  <license>Apache License 2.0</license>
+
+  <depend>agimus_pytroller</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
