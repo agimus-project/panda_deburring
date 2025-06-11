@@ -47,7 +47,7 @@ trajectory_publisher:
       type: double_array
       description: "Desired force [N] applied by `frame_of_interest`."
       validation:
-        fixed_size<>: [3]
+        fixed_size<>: [6]
   weights:
     robot_configuration:
       type: double_array
@@ -95,7 +95,7 @@ trajectory_publisher:
       type: double_array
       description: "Weights associated to force applied by `frame_of_interest`."
       validation:
-        fixed_size<>: [3]
+        fixed_size<>: [6]
         lower_element_bounds<>: [0.0]
   sanding_generator:
     circle:
