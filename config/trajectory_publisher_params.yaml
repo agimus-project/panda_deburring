@@ -9,7 +9,7 @@ trajectory_publisher_node:
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       frame_translation: [0.5, 0.0, 0.4]
       frame_rotation: [0.0, 0.0, 1.0, 0.0]
-      desired_force: [0.0, 0.0, 1.0]
+      desired_force: [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
     weights:
       robot_configuration: [0.8, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       robot_velocity: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
@@ -18,7 +18,7 @@ trajectory_publisher_node:
       frame_translation: [40.0, 40.0, 0.0]
       frame_angular_velocity: [2., 2., 2.]
       frame_linear_velocity: [3.125, 3.125, 3.125]
-      desired_force: [0.0, 0.0, 5.0]
+      desired_force: [0.0, 0.0, 5.0, 0.0, 0.0, 0.0]
     sanding_generator:
       circle:
         radius: 0.08
