@@ -470,7 +470,7 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
                     "Only one end-effector force tracking reference is allowed."
                 )
             ee_name = ee_names[0]
-            desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name]
+            desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name][:3]
 
             # If weights are non zero, assume robot expects to be in contact in this state
             if np.sum(np.abs(desired_force_weights)) > 1e-9:
@@ -563,9 +563,7 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
                 "Only one end-effector force tracking reference is allowed."
             )
         ee_name = ee_names[0]
-        desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name][
-            self._force_mask
-        ]
+        desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name][:3]
         # If weights are non zero, assume robot expects to be in contact in this state
         if np.sum(np.abs(desired_force_weights)) > 1e-9:
             self._solver.problem.terminalModel.differential.active_contact = True
@@ -573,9 +571,9 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
             self._solver.problem.terminalModel.differential.f_des = (
                 ref_weighted_pt.point.forces[ee_name].linear
             )
-            # self._solver.problem.terminalModel.differential.f_weight = (
-            #     desired_force_weights
-            # )
+            self._solver.problem.terminalModel.differential.f_weight = (
+                desired_force_weights
+            )
 
         else:
             self._solver.problem.terminalModel.differential.active_contact = False

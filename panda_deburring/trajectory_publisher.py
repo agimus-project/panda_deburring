@@ -13,6 +13,7 @@ from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Int64
 
 from panda_deburring.trajectory_publisher_parameters import trajectory_publisher
 
@@ -41,10 +42,18 @@ class TrajectoryPublisher(Node):
             self._params.trajectory_generator_name
         ]
 
+        self._buffer_sub = self.create_subscription(
+            Int64, "buffer_size", self._buffer_cb, 10
+        )
+        self._buffer_size = 50
+
         self._timer = self.create_timer(
             1.0 / self._params.update_frequency, self._publish_mpc_input_cb
         )
         self.get_logger().info("Node started.")
+
+    def _buffer_cb(self, msg: Int64) -> None:
+        self._buffer_size = msg.data
 
     def _update_params(self, first_call: bool = False) -> None:
         """Updates values of dynamic parameters and updated dependent objects.
@@ -123,7 +132,7 @@ class TrajectoryPublisher(Node):
         r = self._params.sanding_generator.circle.radius
         frequency = self._params.sanding_generator.circle.frequency
 
-        t = seq / self._params.update_frequency
+        t = seq * 0.002
 
         omega = frequency * 2.0 * np.pi
         x = np.cos(t * omega) * r
@@ -148,7 +157,11 @@ class TrajectoryPublisher(Node):
         """Callback publishing messages with trajectory to follow by MPC."""
         self._update_params()
 
-        end_seq = self._sequence_cnt + self._params.n_buffer_points
+        n_new_samples = 50 - self._buffer_size
+        if n_new_samples < 0:
+            return
+
+        end_seq = self._sequence_cnt + n_new_samples
         mpc_input_array = MpcInputArray(
             inputs=[
                 self._generator_cb(seq) for seq in range(self._sequence_cnt, end_seq)

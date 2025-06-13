@@ -20,6 +20,7 @@ from agimus_controller_ros.ros_utils import mpc_debug_data_to_msg
 from agimus_msgs.msg import MpcDebug, MpcInputArray
 from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
+from std_msgs.msg import Float64, Int64
 
 from panda_deburring.ocp_croco_force_feedback import (
     OCPCrocoForceFeedback,
@@ -78,12 +79,22 @@ class ControllerImpl(ControllerImplBase):
             pin.Force() for _ in range(self._robot_models.robot_model.nq + 1)
         ]
         self._nv_zeros = np.zeros(self._robot_models.robot_model.nv)
-        self._u_zeros = np.zeros(self._robot_models.robot_model.nv)
+        self._u_zeros = np.zeros(7)
+        self._u_final = np.zeros(7)
         self._frame_of_interest_id = self._robot_models.robot_model.getFrameId(
             self._ocp_params.frame_of_interest
         )
 
         self._first_call = True
+        self._compute_time = 0
+        self._traj_point = TrajectoryPoint(
+            time_ns=0,
+            robot_configuration=np.zeros(5),
+            robot_velocity=np.zeros(5),
+            robot_acceleration=np.zeros(5),
+            forces=pin.Force.Zero(),
+        )
+        self._force_vect = np.zeros(6)
 
     def mpc_input_cb(self, msg: MpcInputArray):
         for mpc_input in msg.inputs:
@@ -109,6 +120,7 @@ class ControllerImpl(ControllerImplBase):
 
             traj_point = TrajectoryPoint(
                 time_ns=now,
+                id=mpc_input.id,
                 robot_configuration=np.array(mpc_input.q, dtype=np.float64),
                 robot_velocity=np.array(mpc_input.qdot, dtype=np.float64),
                 robot_acceleration=np.array(mpc_input.qddot, dtype=np.float64),
@@ -146,20 +158,32 @@ class ControllerImpl(ControllerImplBase):
             )
 
     def get_ocp_results(self) -> MpcDebug:
-        self.mpc.mpc_debug_data.reference_id = 0
+        # self.mpc.mpc_debug_data.reference_id = 0
         return mpc_debug_data_to_msg(self.mpc.mpc_debug_data)
 
+    def get_solve_times(self) -> Float64:
+        return Float64(data=self._compute_time * 1e-9)
+
+    def get_ocp_solve_times(self) -> Float64:
+        return Float64(data=self.mpc.mpc_debug_data.duration_ocp_solve_ns * 1e-9)
+
+    def get_filer_force(self) -> Float64:
+        return Float64(data=self._traj_point.forces.vector[2])
+
+    def get_buffer_size(self) -> Int64:
+        return Int64(data=len(self.mpc._buffer))
+
     def on_update(self, state: np.array) -> np.array:
+        now = time.perf_counter_ns()
         # state[-6:] = -state[-6:]
-        # state = np.concatenate((state, np.zeros(6)))
-        now = time.time()
+        # state = np.concatenate((state, np.zeros(5)))
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv
 
         # Extract state values
-        q = state[:nq]
-        dq = state[nq : nq + nv]
-        force = state[-6:]
+        q = state[1 : nq + 1]
+        dq = state[nq + 1 : nq + 1 + nv]
+        self._force_vect[:3] = -state[-3:]
 
         # Compute gravity torque
         pin.framesForwardKinematics(self._robot_models.robot_model, self._robot_data, q)
@@ -171,7 +195,7 @@ class ControllerImpl(ControllerImplBase):
             )
             oMc = self._robot_data.oMf[self._frame_of_interest_id]
             oMc.translation += self._ocp_params.oPc_offset
-            force_world = oMc.actionInverse.T.dot(force)
+            force_world = oMc.actionInverse.T.dot(self._force_vect)
             for i in range(nq):
                 self._external_forces[i].vector = (
                     self._robot_data.oMi[i].inverse().actionInverse.T.dot(force_world)
@@ -187,24 +211,22 @@ class ControllerImpl(ControllerImplBase):
 
             T = self._ocp_params.horizon_size
             dummy_warmstart = OCPResults(
-                states=[state[:-3]] * (T + 1), feed_forward_terms=[tau_g] * T
+                states=[state[1:]] * (T + 1), feed_forward_terms=[tau_g] * T
             )
             self.mpc._warm_start.update_previous_solution(dummy_warmstart)
             self._first_call = False
             # return preallocated array of zeros
             return self._u_zeros
 
-        x0_traj_point = TrajectoryPoint(
-            time_ns=now,
-            robot_configuration=q,
-            robot_velocity=dq,
-            robot_acceleration=self._nv_zeros,
-            forces=pin.Force(force),
-        )
+        self._traj_point.time_ns = now
+        self._traj_point.robot_configuration = q
+        self._traj_point.robot_velocity = dq
+        self._traj_point.forces.vector = self._force_vect
 
-        ocp_res = self.mpc.run(initial_state=x0_traj_point, current_time_ns=now)
+        ocp_res = self.mpc.run(initial_state=self._traj_point, current_time_ns=now)
 
         if ocp_res is None:
+            self._compute_time = time.perf_counter_ns() - now
             return self._u_zeros
 
         tau_g = pin.rnea(
@@ -214,5 +236,17 @@ class ControllerImpl(ControllerImplBase):
             self._nv_zeros,
             self._nv_zeros,
         )
+        # J=    pin.computeFrameJacobian(
+        #     self._robot_models.robot_model,
+        #     self._robot_data,
+        #     q,
+        #     self._frame_of_interest_id,
+        #     pin.LOCAL_WORLD_ALIGNED,
+        # )[:3, :]
+        # tau_ff = -J.T @ np.array([state[-3], state[-2], 0.0])
 
-        return ocp_res.feed_forward_terms[0] - tau_g
+        self._u_final[1:-1] = ocp_res.feed_forward_terms[0] - tau_g
+        self._u_final[0] = -500.0 * state[0]
+
+        self._compute_time = time.perf_counter_ns() - now
+        return self._u_final

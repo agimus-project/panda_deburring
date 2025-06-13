@@ -5,22 +5,22 @@ trajectory_publisher_node:
     n_buffer_points: 5
     frame_of_interest: ati_mini45_measurement_reference
     initial_targets:
-      robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
-      robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      robot_configuration: [0.1865, 0.0, -2.4, 0.0, 2.5915]
+      robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0]
       frame_translation: [0.5, 0.0, 0.4]
       frame_rotation: [0.0, 0.0, 1.0, 0.0]
-      desired_force: [0.0, 0.0, 1.0, 0.0, 0.0, 0.0]
-    weights:
-      robot_configuration: [0.8, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      robot_velocity: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-      robot_effort: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-      frame_rotation: [80.0, 80.0, 80.0]
-      frame_translation: [40.0, 40.0, 0.0]
-      frame_angular_velocity: [2., 2., 2.]
-      frame_linear_velocity: [3.125, 3.125, 3.125]
       desired_force: [0.0, 0.0, 5.0, 0.0, 0.0, 0.0]
+    weights:
+      robot_configuration: [0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001]
+      robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001]
+      frame_rotation: [5.0, 5.0, 0.0]
+      frame_translation: [30.0, 30.0, 1.0]
+      frame_angular_velocity: [0.0, 0.0, 0.0]
+      frame_linear_velocity: [2.0, 2.0, 0.0]
+      desired_force: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # 0.001
     sanding_generator:
       circle:
-        radius: 0.08
+        radius: 0.05
         frequency: 0.1
       start_time: 5.0

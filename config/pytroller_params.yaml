@@ -3,7 +3,7 @@ agimus_pytroller:
     type: agimus_pytroller/AgimusPytroller
     python_module: panda_deburring.deburring_controller
     python_downsample_factor: 2
-    error_on_no_data: false
+    error_on_no_data: true
     interpolate_trajectory: true
     state_interfaces:
       - fer_joint1/position
@@ -12,20 +12,20 @@ agimus_pytroller:
       - fer_joint4/position
       - fer_joint5/position
       - fer_joint6/position
-      - fer_joint7/position
-      - fer_joint1/velocity
+      # - fer_joint7/position
+      # - fer_joint1/velocity
       - fer_joint2/velocity
       - fer_joint3/velocity
       - fer_joint4/velocity
       - fer_joint5/velocity
       - fer_joint6/velocity
-      - fer_joint7/velocity
+      # - fer_joint7/velocity
       - ati_mini45/force.x
       - ati_mini45/force.y
       - ati_mini45/force.z
-      - ati_mini45/torque.x
-      - ati_mini45/torque.y
-      - ati_mini45/torque.z
+      # - ati_mini45/torque.x
+      # - ati_mini45/torque.y
+      # - ati_mini45/torque.z
     command_interfaces:
       - fer_joint1/effort
       - fer_joint2/effort
@@ -39,35 +39,52 @@ agimus_pytroller:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["mpc_debug_data"]
+    published_topics: ["mpc_debug_data", "solver_time", "ocp_solve_times", "get_filer_force", "get_buffer_size"]
     mpc_debug_data:
       topic_name: "mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
       python_msg_getter_name: get_ocp_results
+    solver_time:
+      topic_name: "solver_time"
+      topic_type: std_msgs/msg/Float64
+      python_msg_getter_name: get_solve_times
+    ocp_solve_times:
+      topic_name: "ocp_solve_times"
+      topic_type: std_msgs/msg/Float64
+      python_msg_getter_name: get_ocp_solve_times
+    get_filer_force:
+      topic_name: "filtered_force"
+      topic_type: std_msgs/msg/Float64
+      python_msg_getter_name: get_filer_force
+    get_buffer_size:
+      topic_name: "buffer_size"
+      topic_type: std_msgs/msg/Int64
+      python_msg_getter_name: get_buffer_size
     pytroller_python_params:
       robot_model_params:
         moving_joint_names:
-          - fer_joint1
+          # - fer_joint1
           - fer_joint2
           - fer_joint3
           - fer_joint4
           - fer_joint5
           - fer_joint6
-          - fer_joint7
+          # - fer_joint7
         free_flyer: false
         collision_as_capsule: false
         self_collision: false
-        armature: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+        armature: [0.1, 0.1, 0.1, 0.1, 0.1]
       dt_factor_n_seq:
-        factors: [1]
-        n_steps: [5]
+        factors: [1, 2, 3, 4, 5]
+        n_steps: [1, 1, 1, 1, 1]
       ocp_params_force_feedback:
         dt: 0.002
         horizon_size: 5
+        termination_tolerance: 0.001
         solver_iters: 2
         callbacks: false
-        qp_iters: 50
-        use_debug_data: false
+        qp_iters: 25
+        use_debug_data: true
         with_force_cost: true
         with_gravity_torque_reg: true
         frame_of_interest: ati_mini45_measurement_reference
@@ -75,8 +92,8 @@ agimus_pytroller:
         frame_translation_cost_weight: 1.0
         frame_rotation_cost_weight: 1.0
         frame_velocity_cost_weight: 1.0
-        Kp: [150.0, 150.0, 150.0]
-        Kv: [0.5, 0.5, 0.5]
+        Kp: [2000.0, 2000.0, 2000.0]
+        Kv: [200.0, 200.0, 200.0]
         oPc_offset: [0.0, 0.0, 0.0]
         contact_type: "3D"
         solver_nthreads: 16
