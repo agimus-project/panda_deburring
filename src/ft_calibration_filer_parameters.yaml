@@ -37,6 +37,19 @@ ft_calibration_filter:
     default_value: [0.0, 0.0, 9.81]
     description: "Gravity vector used to compute forces related to end effector mass."
     read_only: true
+  __map_state_force_interfaces_names:
+    a:
+      type: double_array
+      description: "a coefficients for Butterworth filter."
+      read_only: true
+      validation:
+        fixed_size<>: 2
+    b:
+      type: double_array
+      description: "b coefficients for Butterworth filter."
+      read_only: true
+      validation:
+        fixed_size<>: 3
   calibration:
     measurement_frame:
       xyz:

@@ -183,6 +183,18 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
   bias_buffer_cnt_ = 0;
   bias_computed_ = false;
   avg_bias_ = pinocchio::Force::Zero();
+
+  for (std::size_t i = 0; i < 6; i++) {
+    const auto &filter_params = params_.state_force_interfaces_names_map.at(
+        params_.state_force_interfaces_names[i]);
+
+    std::array<double, 2> a;
+    std::array<double, 3> b;
+    std::copy_n(filter_params.a.begin(), 2, a.begin());
+    std::copy_n(filter_params.b.begin(), 3, b.begin());
+    filters_.push_back(ButterworthFilter(a, b));
+  }
+
   RCLCPP_INFO(this->get_node()->get_logger(), "activate successful");
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -244,9 +256,10 @@ controller_interface::return_type FTCalibrationFilter::update(
   const auto f_gravity =
       calibration_trans_ * (m * calibration_.rotation().transpose() *
                             T_frame.rotation().transpose() * g_);
-  const auto f_out = f - f_gravity;
+  Vector6d f_out = f - f_gravity;
 
   for (std::size_t i = 0; i < f_out.size(); i++) {
+    f_out[i] = filters_[i].update(f_out[i]);
     ordered_command_interfaces_[i].get().set_value(f_out[i]);
   }
 

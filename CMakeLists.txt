@@ -26,8 +26,10 @@ ament_python_install_package(${PROJECT_NAME} SCRIPTS_DESTINATION
 
 generate_parameter_library(ft_calibration_filer_parameters
                            src/ft_calibration_filer_parameters.yaml)
-set(${PROJECT_NAME}_headers include/${PROJECT_NAME}/visibility.hpp
-                            include/${PROJECT_NAME}/ft_calibration_filer.hpp)
+set(${PROJECT_NAME}_headers
+    include/${PROJECT_NAME}/visibility.hpp
+    include/${PROJECT_NAME}/butterworth_filter.hpp
+    include/${PROJECT_NAME}/ft_calibration_filer.hpp)
 
 set(${PROJECT_NAME}_sources src/ft_calibration_filer.cpp)
 
