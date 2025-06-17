@@ -1,5 +1,6 @@
 #include "panda_deburring/ft_calibration_filer.hpp"
 
+#include <Eigen/Dense>
 #include <pinocchio/algorithm/model.hpp>
 #include <pinocchio/math/rpy.hpp>
 #include <pinocchio/parsers/urdf.hpp>
@@ -29,7 +30,7 @@ FTCalibrationFilter::command_interface_configuration() const {
   controller_interface::InterfaceConfiguration command_interfaces_config;
   command_interfaces_config.type =
       controller_interface::interface_configuration_type::INDIVIDUAL;
-  // command_interfaces_config.names = params_.filtered_forces_interfaces_names;
+  command_interfaces_config.names = params_.filtered_forces_interfaces_names;
 
   return command_interfaces_config;
 }
@@ -42,6 +43,25 @@ FTCalibrationFilter::state_interface_configuration() const {
 
 controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
     const rclcpp_lifecycle::State & /*previous_state*/) {
+  try {
+    // register ft sensor data publisher
+    sensor_state_publisher_ =
+        get_node()->create_publisher<geometry_msgs::msg::WrenchStamped>(
+            "~/wrench", rclcpp::SystemDefaultsQoS());
+    realtime_publisher_ =
+        std::make_unique<StatePublisher>(sensor_state_publisher_);
+  } catch (const std::exception &e) {
+    fprintf(stderr,
+            "Exception thrown during publisher creation at configure stage "
+            "with message : %s \n",
+            e.what());
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  realtime_publisher_->lock();
+  realtime_publisher_->msg_.header.frame_id = params_.measurement_frame_id;
+  realtime_publisher_->unlock();
+
   RCLCPP_INFO(this->get_node()->get_logger(), "configure successful");
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -49,11 +69,6 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
 
 controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
-  if (params_.reference_interfaces_names.size() > 0 && !is_in_chained_mode()) {
-    RCLCPP_ERROR(get_node()->get_logger(),
-                 "Wrong activation, the controller needs to be in chain mode.");
-  }
-
   params_ = param_listener_->get_params();
 
   if (!controller_interface::get_ordered_interfaces(
@@ -123,8 +138,9 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
       return controller_interface::CallbackReturn::ERROR;
     }
   }
+
   std::vector<pinocchio::JointIndex> locked_joint_ids;
-  for (std::size_t i = 0; i < robot_model_full.njoints; i++) {
+  for (std::size_t i = 1; i < robot_model_full.njoints; i++) {
     if (std::find(moving_joint_ids.begin(), moving_joint_ids.end(), i) ==
         moving_joint_ids.end()) {
       locked_joint_ids.push_back(i);
@@ -181,17 +197,12 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_deactivate(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-bool FTCalibrationFilter::on_set_chained_mode(bool /*chained_mode*/) {
-  return params_.reference_interfaces_names.size() > 0;
-}
-
-controller_interface::return_type
-FTCalibrationFilter::update_and_write_commands(
-    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
+controller_interface::return_type FTCalibrationFilter::update(
+    const rclcpp::Time &time, const rclcpp::Duration & /*period*/) {
   // Gather measurements to later remove bias
-  if (bias_buffer_cnt_ < bias_measurements_.size()) {
-    for (std::size_t i = 0; i < bias_measurements_.cols(); i++) {
-      bias_measurements_(bias_buffer_cnt_, i) =
+  if (bias_buffer_cnt_ < bias_measurements_.cols()) {
+    for (std::size_t i = 0; i < bias_measurements_.rows(); i++) {
+      bias_measurements_(i, bias_buffer_cnt_) =
           ordered_state_force_interfaces_[i].get().get_value();
     }
     bias_buffer_cnt_++;
@@ -201,12 +212,25 @@ FTCalibrationFilter::update_and_write_commands(
   if (!bias_computed_) {
     avg_bias_.toVector() = bias_measurements_.rowwise().mean();
     bias_computed_ = true;
-    RCLCPP_INFO(this->get_node()->get_logger(), "Bias computation finished.");
+    RCLCPP_INFO(this->get_node()->get_logger(),
+                "Bias computation finished. Bias Values are:\n"
+                "\tforce.x:  %3.2f\n"
+                "\tforce.y:  %3.2f\n"
+                "\tforce.z:  %3.2f\n"
+                "\ttorque.x: %3.2f\n"
+                "\ttorque.y: %3.2f\n"
+                "\ttorque.z: %3.2f",
+                avg_bias_.linear()[0], avg_bias_.linear()[1],
+                avg_bias_.linear()[2], avg_bias_.angular()[0],
+                avg_bias_.angular()[1], avg_bias_.angular()[2]);
   }
 
+  Vector6d force;
   for (std::size_t i = 0; i < 6; i++) {
-    force_.toVector()[i] = ordered_state_force_interfaces_[i].get().get_value();
+    force[i] = ordered_state_force_interfaces_[i].get().get_value();
   }
+  force_.toVector() = force;
+
   for (std::size_t i = 0; i < q_.size(); i++) {
     q_[i] = ordered_state_robot_position_interfaces_[i].get().get_value();
   }
@@ -223,29 +247,20 @@ FTCalibrationFilter::update_and_write_commands(
   const auto f_out = f - f_gravity;
 
   for (std::size_t i = 0; i < f_out.size(); i++) {
-    // reference_interfaces_[i] = f_out[i];
     ordered_command_interfaces_[i].get().set_value(f_out[i]);
   }
 
-  return controller_interface::return_type::OK;
-}
-
-std::vector<hardware_interface::CommandInterface>
-FTCalibrationFilter::on_export_reference_interfaces() {
-  std::vector<hardware_interface::CommandInterface> reference_interfaces;
-
-  const auto names = params_.reference_interfaces_names;
-  reference_interfaces_.resize(names.size());
-  for (std::size_t i = 0; i < names.size(); i++) {
-    reference_interfaces.push_back(hardware_interface::CommandInterface(
-        get_node()->get_name(), names[i], &reference_interfaces_[i]));
+  if (realtime_publisher_ && realtime_publisher_->trylock()) {
+    realtime_publisher_->msg_.header.stamp = time;
+    realtime_publisher_->msg_.wrench.force.x = f_out[0];
+    realtime_publisher_->msg_.wrench.force.y = f_out[1];
+    realtime_publisher_->msg_.wrench.force.z = f_out[2];
+    realtime_publisher_->msg_.wrench.torque.x = f_out[3];
+    realtime_publisher_->msg_.wrench.torque.y = f_out[4];
+    realtime_publisher_->msg_.wrench.torque.z = f_out[5];
+    realtime_publisher_->unlockAndPublish();
   }
 
-  return reference_interfaces;
-}
-
-controller_interface::return_type
-FTCalibrationFilter::update_reference_from_subscribers() {
   return controller_interface::return_type::OK;
 }
 
@@ -253,4 +268,4 @@ FTCalibrationFilter::update_reference_from_subscribers() {
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(ft_calibration_filter::FTCalibrationFilter,
-                       controller_interface::ChainableControllerInterface)
+                       controller_interface::ControllerInterface)

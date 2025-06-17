@@ -14,6 +14,8 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 # Handle dependencies by reading the package.xml
 #
 find_package(ament_cmake_auto REQUIRED)
+find_package(pinocchio REQUIRED)
+
 ament_auto_find_build_dependencies()
 
 generate_parameter_module(trajectory_publisher_parameters
@@ -39,6 +41,8 @@ target_compile_definitions(
   PUBLIC -DPANDA_DEBURRING_IS_SHARED
   PRIVATE -DPANDA_DEBURRING_DO_EXPORT)
 
+target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio)
+ament_target_dependencies(${PROJECT_NAME} Eigen3)
 target_link_libraries(${PROJECT_NAME} ft_calibration_filer_parameters)
 
 #

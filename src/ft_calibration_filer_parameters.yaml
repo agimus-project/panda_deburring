@@ -11,11 +11,6 @@ ft_calibration_filter:
     read_only: true
     validation:
       size_gt<>: 0
-  reference_interfaces_names:
-    type: string_array
-    default_value: []
-    description: "List of names of interfaces to declare as references."
-    read_only: true
   moving_joint_names:
     type: string_array
     description: "Ordered list of names of joints kept in pinocchio model. The order must match `state_robot_position_interfaces_names`."
