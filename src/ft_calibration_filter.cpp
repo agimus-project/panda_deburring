@@ -337,10 +337,12 @@ controller_interface::return_type FTCalibrationFilter::update(
   contact_detector_.update(f_out);
   bool in_contact = contact_detector_.in_contact();
 
-  if (realtime_contact_publisher_ && realtime_contact_publisher_->trylock()) {
+  if (last_in_contact_ != in_contact && realtime_contact_publisher_ &&
+      realtime_contact_publisher_->trylock()) {
     realtime_contact_publisher_->msg_.data = in_contact;
     realtime_contact_publisher_->unlockAndPublish();
   }
+  last_in_contact_ = in_contact;
 
   if (params_.contact_detection.augment_state) {
     ordered_command_interfaces_[ordered_command_interfaces_.size() - 1]

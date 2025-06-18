@@ -21,6 +21,10 @@ class ContactDetector {
       samples_since_switch_ = 0;
     } else {
       samples_since_switch_++;
+      // Prevent integer overflow
+      if (samples_since_switch_ > 5 * hysteresis_samples_) {
+        samples_since_switch_ = hysteresis_samples_;
+      }
     }
 
     return filterted_state_;
