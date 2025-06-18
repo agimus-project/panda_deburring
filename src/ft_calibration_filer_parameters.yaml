@@ -32,6 +32,11 @@ ft_calibration_filter:
     default_value: 50
     description: "Number of samples used to estimate initial bias values."
     read_only: true
+  invert_forces:
+    type: bool
+    default_value: false
+    description: "Invert sign of the read forces signs."
+    read_only: true
   gravity_vector:
     type: double_array
     default_value: [0.0, 0.0, 9.81]

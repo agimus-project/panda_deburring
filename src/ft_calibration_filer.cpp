@@ -223,6 +223,9 @@ controller_interface::return_type FTCalibrationFilter::update(
   // If all data required was acquired, compute average bias
   if (!bias_computed_) {
     avg_bias_.toVector() = bias_measurements_.rowwise().mean();
+    if (params_.invert_forces) {
+      avg_bias_.toVector() = -avg_bias_.toVector();
+    }
     bias_computed_ = true;
     RCLCPP_INFO(this->get_node()->get_logger(),
                 "Bias computation finished. Bias Values are:\n"
@@ -241,7 +244,7 @@ controller_interface::return_type FTCalibrationFilter::update(
   for (std::size_t i = 0; i < 6; i++) {
     force[i] = ordered_state_force_interfaces_[i].get().get_value();
   }
-  force_.toVector() = force;
+  force_.toVector() = params_.invert_forces ? force : -force;
 
   for (std::size_t i = 0; i < q_.size(); i++) {
     q_[i] = ordered_state_robot_position_interfaces_[i].get().get_value();

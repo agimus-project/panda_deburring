@@ -34,6 +34,7 @@ ft_calibration_filter:
     measurement_frame_id: ati_mini45_measurement_reference
     bias_measurement_samples: 50
     gravity_vector: [0.0, 0.0, 9.81]
+    invert_forces: true
     calibration:
       measurement_frame:
         xyz: [0.0, 0.0, 0.0]
