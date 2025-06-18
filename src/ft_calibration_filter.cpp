@@ -240,6 +240,10 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
 
   contact_detector_.set_hysteresis_samples(
       params_.contact_detection.hysteresis_samples);
+  contact_detector_.set_lower_threshold(
+      params_.contact_detection.lower_threshold);
+  contact_detector_.set_upper_threshold(
+      params_.contact_detection.upper_threshold);
 
   RCLCPP_INFO(this->get_node()->get_logger(), "activate successful");
 
@@ -261,6 +265,10 @@ controller_interface::return_type FTCalibrationFilter::update(
     params_ = param_listener_->get_params();
     contact_detector_.set_hysteresis_samples(
         params_.contact_detection.hysteresis_samples);
+    contact_detector_.set_lower_threshold(
+        params_.contact_detection.lower_threshold);
+    contact_detector_.set_upper_threshold(
+        params_.contact_detection.upper_threshold);
     RCLCPP_INFO(this->get_node()->get_logger(), "Parameters were updated");
   }
 

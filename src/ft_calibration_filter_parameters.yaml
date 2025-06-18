@@ -90,7 +90,8 @@ ft_calibration_filter:
       type: int
       default_value: 5
       description: "Minimum number of control cycles to consider state switch."
-      read_only: true
+      validation:
+        gt<>: [1]
     augment_state:
       type: bool
       default_value: false
@@ -101,3 +102,15 @@ ft_calibration_filter:
       default_value: "in_contact"
       description: "Name of the state interface used to indicate contact occurred."
       read_only: true
+    lower_threshold:
+      type: double
+      default_value: 0.2
+      description: "Threshold used to detect transition from in contact -> not in contact."
+      validation:
+        gt<>: [0.0]
+    upper_threshold:
+      type: double
+      default_value: 0.2
+      description: "Threshold used to detect transition from not in contact -> in contact."
+      validation:
+        gt<>: [0.0]
