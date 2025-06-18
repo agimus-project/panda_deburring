@@ -39,6 +39,8 @@ ft_calibration_filter:
       hysteresis_samples: 5
       augment_state: true
       command_interface_name: agimus_pytroller/in_contact
+      lower_threshold: 0.2
+      upper_threshold: 1.0
     calibration:
       measurement_frame:
         xyz: [0.0, 0.0, 0.0]
