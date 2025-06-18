@@ -272,6 +272,15 @@ controller_interface::return_type FTCalibrationFilter::update(
   }
 
   Vector6d force;
+
+  if (param_listener_->is_old(params_)) {
+    params_ = param_listener_->get_params();
+    contact_detector_.set_hysteresis_samples(
+        params_.contact_detection.hysteresis_samples);
+    RCLCPP_INFO(this->get_node()->get_logger(), "Parameters were updated");
+  }
+
+  
   for (std::size_t i = 0; i < 6; i++) {
     force[i] = ordered_state_force_interfaces_[i].get().get_value();
   }
@@ -314,8 +323,8 @@ controller_interface::return_type FTCalibrationFilter::update(
     return controller_interface::return_type::OK;
   }
 
-  const auto f = force_.toVector() - avg_bias_.toVector();
-  Vector6d f_out = f - f_gravity;
+  const auto f = force_ - avg_bias_;
+  pinocchio::Force f_out(f.toVector() - f_gravity);
 
   for (std::size_t i = 0; i < f_out.toVector().size(); i++) {
     f_out.toVector()[i] = filters_[i].update(f_out.toVector()[i]);
