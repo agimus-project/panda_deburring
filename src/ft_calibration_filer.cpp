@@ -226,12 +226,12 @@ controller_interface::return_type FTCalibrationFilter::update(
     bias_computed_ = true;
     RCLCPP_INFO(this->get_node()->get_logger(),
                 "Bias computation finished. Bias Values are:\n"
-                "\tforce.x:  %3.2f\n"
-                "\tforce.y:  %3.2f\n"
-                "\tforce.z:  %3.2f\n"
-                "\ttorque.x: %3.2f\n"
-                "\ttorque.y: %3.2f\n"
-                "\ttorque.z: %3.2f",
+                "\tforce.x:  %3.2fN\n"
+                "\tforce.y:  %3.2fN\n"
+                "\tforce.z:  %3.2fN\n"
+                "\ttorque.x: %3.2fNm\n"
+                "\ttorque.y: %3.2fNm\n"
+                "\ttorque.z: %3.2fNm",
                 avg_bias_.linear()[0], avg_bias_.linear()[1],
                 avg_bias_.linear()[2], avg_bias_.angular()[0],
                 avg_bias_.angular()[1], avg_bias_.angular()[2]);
