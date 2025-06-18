@@ -1,5 +1,6 @@
 import copy
 import time
+from enum import Enum
 
 import numpy as np
 import pinocchio as pin
@@ -13,8 +14,17 @@ from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
+from tf2_geometry_msgs import do_transform_pose
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 from panda_deburring.trajectory_publisher_parameters import trajectory_publisher
+
+
+class MotionPhases(Enum):
+    wait_for_data = 0
+    initialize = 1
+    perform_motion = 2
 
 
 class TrajectoryPublisher(Node):
@@ -33,9 +43,18 @@ class TrajectoryPublisher(Node):
             ),
         )
 
+        # Transform buffers
+        self._buffer = Buffer()
+        self._listener = TransformListener(self._buffer, self, spin_thread=True)
+
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
         self._update_params(first_call=True)
         self._sequence_cnt = 0
+
+        self._initial_configuration = pin.SE3()
+        self._trajectory_offset = 0
+        self._start_point = None
+        self._motion_phase = MotionPhases.wait_for_data
 
         self._generator_cb = {"sanding_generator": self._circle_generator}[
             self._params.trajectory_generator_name
@@ -127,17 +146,99 @@ class TrajectoryPublisher(Node):
 
         return weighted_traj_point_to_mpc_msg(point)
 
+    def _check_can_tarnsform(self) -> bool:
+        parent = self._params.robot_base_frame
+        child = self._params.frame_of_interest
+        time = self.get_clock().now()
+        return self._buffer.can_transform(parent, child, time)
+
+    def _get_current_pose(self) -> pin.SE3:
+        parent = self._params.robot_base_frame
+        child = self._params.frame_of_interest
+        time = self.get_clock().now()
+        transform = self._buffer.lookup_transform(parent, child, time).transform
+        return pin.XYZQUATToSE3(
+            np.array(
+                [
+                    transform.translation.x,
+                    transform.translation.y,
+                    transform.translation.z,
+                    transform.rotation.x,
+                    transform.rotation.y,
+                    transform.rotation.z,
+                    transform.rotation.w,
+                ]
+            )
+        )
+
     def _publish_mpc_input_cb(self):
         """Callback publishing messages with trajectory to follow by MPC."""
         self._update_params()
 
-        end_seq = self._sequence_cnt + self._params.n_buffer_points
-        mpc_input_array = MpcInputArray(
-            inputs=[
-                self._generator_cb(seq) for seq in range(self._sequence_cnt, end_seq)
-            ]
-        )
-        self._sequence_cnt = end_seq
+        if self._motion_phase == MotionPhases.wait_for_data:
+            if not self._check_can_tarnsform():
+                self.get_logger().info(
+                    f"Waiting for transformation between '{self._params.robot_base_frame}' "
+                    f"and '{self._params.frame_of_interest}' to be available...",
+                    throttle_duration_sec=5.0,
+                )
+                return
+            self._motion_phase = MotionPhases.initialize
+            self._start_point = self._generator_cb(0)
+            self._sequence_cnt += 1
+            return
+
+        elif self._motion_phase == MotionPhases.initialize:
+            self.get_logger().info(
+                "Initial configuration received. Generating motion...", once=True
+            )
+            max_lin_vel = self._params.initialization.max_linear_velocity
+            max_ang_vel = self._params.initialization.max_angular_velocity
+            pose_tolerance = self._params.initialization.pose_tolerance
+            rot_tolerance = self._params.initialization.rot_tolerance
+
+            current = self._get_current_pose()
+            end = pin.XYZQUATToSE3(
+                self._start_point.point.point.end_effector_poses[
+                    self._params.frame_of_interest
+                ]
+            )
+            inputs = []
+            for _ in range(self._params.n_buffer_points):
+                vel = pin.log6(current.inverse() * end)
+                lin_vel = np.linalg.norm(vel.linear)
+                ang_vel = np.linalg.norm(vel.angular)
+                if lin_vel < pose_tolerance and ang_vel < rot_tolerance:
+                    self.get_logger().info(
+                        "Initial position reached. Following trajectory."
+                    )
+                    self._motion_phase = MotionPhases.perform_motion
+                    break
+
+                if lin_vel > max_lin_vel:
+                    vel.linear = vel.linear / lin_vel * max_lin_vel
+
+                if ang_vel > max_ang_vel:
+                    vel.angular = vel.linear / ang_vel * max_ang_vel
+
+                current = current * pin.exp6(vel)
+                point = copy.deepcopy(self._start_point)
+                point.point.end_effector_poses[self._params.frame_of_interest] = (
+                    pin.SE3ToXYZQUAT(current)
+                )
+                point.point.robot_velocity[self._params.frame_of_interest] = vel
+                inputs.append(point)
+            mpc_input_array = MpcInputArray(inputs)
+
+        elif self._motion_phase == MotionPhases.perform_motion:
+            end_seq = self._sequence_cnt + self._params.n_buffer_points
+            mpc_input_array = MpcInputArray(
+                inputs=[
+                    self._generator_cb(seq)
+                    for seq in range(self._sequence_cnt, end_seq)
+                ]
+            )
+            self._sequence_cnt = end_seq
 
         mpc_input_array.header.stamp = self.get_clock().now().to_msg()
         self._mpc_input_publisher.publish(mpc_input_array)

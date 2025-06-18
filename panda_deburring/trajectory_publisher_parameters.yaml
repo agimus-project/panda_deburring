@@ -21,6 +21,12 @@ trajectory_publisher:
     description: "Name of a frame associated to contact point."
     validation:
       not_empty<>: []
+  robot_base_frame:
+    type: string
+    default_value: "world"
+    description: "Name of a frame associated with base of the robot."
+    validation:
+      not_empty<>: []
   initial_targets:
     robot_configuration:
       type: double_array
@@ -85,6 +91,31 @@ trajectory_publisher:
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
+  initialization:
+    max_linear_velocity:
+      type: double
+      description: "Maximum linear end effector velocity used when initializing the robot [m/s]"
+      default_value: 0.05
+      validation:
+        gt<>: [0.0]
+    max_angular_velocity:
+      type: double
+      description: "Maximum angular end effector  velocity used when initializing the robot [rad/s]"
+      default_value: 0.05
+      validation:
+        gt<>: [0.0]
+    pose_tolerance:
+      type: double
+      description: "Tolerance of end effector pose reaching [m] before switching to the actual task"
+      default_value: 0.02
+      validation:
+        gt<>: [0.0]
+    rot_tolerance:
+      type: double
+      description: "Tolerance of end effector rotation [rad] before switching to the actual task"
+      default_value: 0.087 # about 5 deg
+      validation:
+        gt<>: [0.0]
   sanding_generator:
     circle:
       radius:
