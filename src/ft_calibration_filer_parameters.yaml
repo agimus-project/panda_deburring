@@ -85,3 +85,19 @@ ft_calibration_filter:
         read_only: true
         validation:
           gt<>: [0.0]
+  contact_detection:
+    hysteresis_samples:
+      type: int
+      default_value: 5
+      description: "Minimum number of control cycles to consider state switch."
+      read_only: true
+    augment_state:
+      type: bool
+      default_value: false
+      description: "Creates new command interface that informs if contact occurred."
+      read_only: true
+    command_interface_name:
+      type: string
+      default_value: "in_contact"
+      description: "Name of the state interface used to indicate contact occurred."
+      read_only: true
