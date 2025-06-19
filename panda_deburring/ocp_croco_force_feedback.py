@@ -19,9 +19,7 @@ class OCPParamsCrocoForceFeedback(OCPParamsBaseCroco):
     x_reg_cost_weight: float = 0.0
     frame_translation_cost_weight: float = 0.0
     frame_rotation_cost_weight: float = 0.0
-
-    frame_velocity_weights: np.array = None
-    frame_velocity_cost_weight: np.array = None
+    frame_velocity_cost_weight: float = 0.0
 
     frame_of_interest: str = ""
 
@@ -50,7 +48,6 @@ class OCPParamsCrocoForceFeedback(OCPParamsBaseCroco):
             contact_param_len = 1
 
         for field, expected_length in (
-            ("frame_velocity_weights", 6),
             ("Kp", contact_param_len),
             ("Kv", contact_param_len),
             ("oPc_offset", 3),
@@ -212,7 +209,7 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
                 self._actuation.nu,
             )
             frame_velocity_activation = crocoddyl.ActivationModelWeightedQuad(
-                self._ocp_params.frame_velocity_weights
+                np.zeros(6)
             )
             frameVelocityCost = crocoddyl.CostModelResidual(
                 self._state, frame_velocity_activation, frame_velocity_residual
@@ -343,9 +340,7 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
             pin.WORLD,
             self._actuation.nu,
         )
-        frame_velocity_activation = crocoddyl.ActivationModelWeightedQuad(
-            self._ocp_params.frame_velocity_weights
-        )
+        frame_velocity_activation = crocoddyl.ActivationModelWeightedQuad(np.zeros(6))
         frameVelocityCost = crocoddyl.CostModelResidual(
             self._state, frame_velocity_activation, frame_velocity_residual
         )
@@ -458,6 +453,16 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
             frame_rotation_cost.cost.residual.reference = (
                 ref_weighted_pt.point.end_effector_poses[ee_name].rotation
             )
+            frame_velocity_cost = self._solver.problem.runningModels[
+                i
+            ].differential.costs.costs["frameVelocityCost"]
+            frame_velocity_cost.cost.residual.id = ee_id
+            frame_velocity_cost.cost.activation.weights = (
+                ref_weighted_pt.weights.w_end_effector_velocities[ee_name]
+            )
+            frame_velocity_cost.cost.residual.reference = (
+                ref_weighted_pt.point.end_effector_velocities[ee_name]
+            )
 
             ee_names = list(iter(ref_weighted_pt.weights.w_forces))
             if len(ee_names) > 1:
@@ -538,6 +543,18 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
         )
         frame_rotation_cost.cost.residual.reference = (
             ref_weighted_pt.point.end_effector_poses[ee_name].rotation
+        )
+        frame_velocity_cost = (
+            self._solver.problem.terminalModel.differential.costs.costs[
+                "frameVelocityCost"
+            ]
+        )
+        frame_velocity_cost.cost.residual.id = ee_id
+        frame_velocity_cost.cost.activation.weights = (
+            ref_weighted_pt.weights.w_end_effector_velocities[ee_name]
+        )
+        frame_velocity_cost.cost.residual.reference = (
+            ref_weighted_pt.point.end_effector_velocities[ee_name]
         )
 
         ee_names = list(iter(ref_weighted_pt.weights.w_forces))

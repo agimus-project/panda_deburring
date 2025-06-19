@@ -86,17 +86,18 @@ class TrajectoryPublisher(Node):
                 robot_effort=np.zeros(len(configuration.robot_velocity)),
                 forces={
                     frame_of_interest: pin.Force(
-                        np.concatenate((configuration.desired_force, np.zeros(3)))
+                        np.array(configuration.desired_force), np.zeros(3)
                     )
                 },
                 end_effector_poses={
                     frame_of_interest: np.concatenate(
                         (
-                            np.asarray(configuration.frame_rotation),
                             np.asarray(configuration.frame_translation),
+                            np.asarray(configuration.frame_rotation),
                         ),
                     )
                 },
+                end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
             )
 
             weights = self._params.weights
@@ -105,12 +106,27 @@ class TrajectoryPublisher(Node):
                 w_robot_velocity=weights.robot_velocity,
                 w_robot_acceleration=[0.0] * len(weights.robot_configuration),
                 w_robot_effort=weights.robot_effort,
-                w_forces={frame_of_interest: weights.desired_force},
+                w_forces={
+                    frame_of_interest: np.concatenate(
+                        (
+                            np.asarray(weights.desired_force),
+                            np.zeros(3),
+                        )
+                    )
+                },
                 w_end_effector_poses={
                     frame_of_interest: np.concatenate(
                         (
                             np.asarray(weights.frame_translation),
                             np.asarray(weights.frame_rotation),
+                        )
+                    )
+                },
+                w_end_effector_velocities={
+                    frame_of_interest: np.concatenate(
+                        (
+                            np.asarray(weights.frame_linear_velocity),
+                            np.asarray(weights.frame_angular_velocity),
                         )
                     )
                 },
@@ -135,10 +151,16 @@ class TrajectoryPublisher(Node):
         r = self._params.sanding_generator.circle.radius
         frequency = self._params.sanding_generator.circle.frequency
 
-        t = seq / self._params.update_frequency
-        x = np.cos(t * frequency * 2.0 * np.pi) * r
-        y = np.sin(t * frequency * 2.0 * np.pi) * r
+        t = seq * self._params.ocp_dt
+
+        omega = frequency * 2.0 * np.pi
+        x = np.cos(t * omega) * r
+        y = np.sin(t * omega) * r
         circle = np.array([x, y, 0.0])
+
+        dx = -r * omega * np.sin(t * omega)
+        dy = r * omega * np.cos(t * omega)
+        dcircle = np.array([dx, dy, 0.0])
 
         point.point.end_effector_poses[self._params.frame_of_interest][:3] = (
             np.array(self._params.initial_targets.frame_translation) + circle

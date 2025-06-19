@@ -98,6 +98,10 @@ class ControllerImpl(ControllerImplBase):
                 ],
                 dtype=np.float64,
             )
+            motion_twist = pin.Motion(
+                linear=np.array([getattr(mpc_input.twist.linear, t) for t in "xyz"]),
+                angular=np.array([getattr(mpc_input.twist.angular, t) for t in "xyz"]),
+            )
             force, torque = (
                 np.array([getattr(msg, f) for f in "xyz"], dtype=np.float64)
                 for msg in (mpc_input.force.force, mpc_input.force.torque)
@@ -113,6 +117,7 @@ class ControllerImpl(ControllerImplBase):
                 end_effector_poses={
                     mpc_input.ee_frame_name: pin.XYZQUATToSE3(xyz_quat_pose)
                 },
+                end_effector_velocities={mpc_input.ee_frame_name: motion_twist},
             )
 
             traj_weights = TrajectoryPointWeights(
@@ -120,8 +125,21 @@ class ControllerImpl(ControllerImplBase):
                 w_robot_velocity=np.array(mpc_input.w_qdot, dtype=np.float64),
                 w_robot_acceleration=np.array(mpc_input.w_qddot, dtype=np.float64),
                 w_robot_effort=np.array(mpc_input.w_robot_effort, dtype=np.float64),
-                w_forces={mpc_input.ee_frame_name: mpc_input.w_force},
-                w_end_effector_poses={mpc_input.ee_frame_name: mpc_input.w_pose},
+                w_forces={
+                    mpc_input.ee_frame_name: np.array(
+                        mpc_input.w_force, dtype=np.float64
+                    )
+                },
+                w_end_effector_poses={
+                    mpc_input.ee_frame_name: np.array(
+                        mpc_input.w_pose, dtype=np.float64
+                    )
+                },
+                w_end_effector_velocities={
+                    mpc_input.ee_frame_name: np.array(
+                        mpc_input.w_twist, dtype=np.float64
+                    )
+                },
             )
             self.mpc.append_trajectory_point(
                 WeightedTrajectoryPoint(point=traj_point, weights=traj_weights)
@@ -132,8 +150,6 @@ class ControllerImpl(ControllerImplBase):
         return mpc_debug_data_to_msg(self.mpc.mpc_debug_data)
 
     def on_update(self, state: np.array) -> np.array:
-        # state[-6:] = -state[-6:]
-        # state = np.concatenate((state, np.zeros(6)))
         now = time.time()
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv
@@ -141,7 +157,8 @@ class ControllerImpl(ControllerImplBase):
         # Extract state values
         q = state[:nq]
         dq = state[nq : nq + nv]
-        force = state[-6:]
+        force = state[-7:-1]
+        _ = state[-1] > 0.5
 
         # Compute gravity torque
         pin.framesForwardKinematics(self._robot_models.robot_model, self._robot_data, q)
@@ -169,7 +186,7 @@ class ControllerImpl(ControllerImplBase):
 
             T = self._ocp_params.horizon_size
             dummy_warmstart = OCPResults(
-                states=[state[:-3]] * (T + 1), feed_forward_terms=[tau_g] * T
+                states=[state[:-4]] * (T + 1), feed_forward_terms=[tau_g] * T
             )
             self.mpc._warm_start.update_previous_solution(dummy_warmstart)
             self._first_call = False

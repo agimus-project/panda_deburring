@@ -9,6 +9,12 @@ trajectory_publisher:
     read_only: true
     validation:
       gt<>: [0.0]
+  ocp_dt:
+    type: double
+    description: "Time step [s] of OPC subscribing to the message."
+    read_only: true
+    validation:
+      gt<>: [0.0]
   n_buffer_points:
     type: int
     description: "Number of time points sent at once to the MPC buffer."
@@ -19,12 +25,6 @@ trajectory_publisher:
   frame_of_interest:
     type: string
     description: "Name of a frame associated to contact point."
-    validation:
-      not_empty<>: []
-  robot_base_frame:
-    type: string
-    default_value: "world"
-    description: "Name of a frame associated with base of the robot."
     validation:
       not_empty<>: []
   initial_targets:
@@ -85,37 +85,24 @@ trajectory_publisher:
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
+    frame_angular_velocity:
+      type: double_array
+      description: "Weights associated to angular velocity of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+    frame_linear_velocity:
+      type: double_array
+      description: "Weights associated to linear velocity of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
     desired_force:
       type: double_array
       description: "Weights associated to force applied by `frame_of_interest`."
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
-  initialization:
-    max_linear_velocity:
-      type: double
-      description: "Maximum linear end effector velocity used when initializing the robot [m/s]"
-      default_value: 0.05
-      validation:
-        gt<>: [0.0]
-    max_angular_velocity:
-      type: double
-      description: "Maximum angular end effector  velocity used when initializing the robot [rad/s]"
-      default_value: 0.05
-      validation:
-        gt<>: [0.0]
-    pose_tolerance:
-      type: double
-      description: "Tolerance of end effector pose reaching [m] before switching to the actual task"
-      default_value: 0.02
-      validation:
-        gt<>: [0.0]
-    rot_tolerance:
-      type: double
-      description: "Tolerance of end effector rotation [rad] before switching to the actual task"
-      default_value: 0.087 # about 5 deg
-      validation:
-        gt<>: [0.0]
   sanding_generator:
     circle:
       radius:
