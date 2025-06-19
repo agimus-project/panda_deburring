@@ -19,7 +19,7 @@ from agimus_controller.warm_start_reference import WarmStartReference
 from agimus_controller_ros.ros_utils import mpc_debug_data_to_msg
 from agimus_msgs.msg import MpcDebug, MpcInputArray
 from agimus_pytroller_py.agimus_pytroller_base import (
-    ControllerImpl as AgimusControllerImplBase,
+    ControllerImplBase as AgimusControllerImplBase,
 )
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import PoseStamped
@@ -137,6 +137,7 @@ class ControllerImpl(AgimusControllerImplBase):
     def on_update(self, state: np.array) -> np.array:
         # state[-6:] = -state[-6:]
         # state = np.concatenate((state, np.zeros(6)))
+
         now = time.time()
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv
