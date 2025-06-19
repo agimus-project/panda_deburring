@@ -18,8 +18,10 @@ find_package(pinocchio REQUIRED)
 
 ament_auto_find_build_dependencies()
 
-generate_parameter_module(trajectory_publisher_parameters
-                          ${PROJECT_NAME}/trajectory_publisher_parameters.yaml)
+generate_parameter_module(
+  trajectory_publisher_parameters
+  ${PROJECT_NAME}/trajectory_publisher_parameters.yaml
+  ${PROJECT_NAME}.custom_validation)
 
 ament_python_install_package(${PROJECT_NAME} SCRIPTS_DESTINATION
                              lib/${PROJECT_NAME})
