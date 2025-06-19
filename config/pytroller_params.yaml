@@ -142,7 +142,7 @@ agimus_pytroller:
       ocp_params_force_feedback:
         dt: 0.002
         horizon_size: 5
-        solver_iters: 2
+        solver_iters: 15
         callbacks: false
         qp_iters: 25
         use_debug_data: false
@@ -158,4 +158,4 @@ agimus_pytroller:
         Kv: [0.5, 0.5, 0.5]
         oPc_offset: [0.0, 0.0, 0.0]
         contact_type: "3D"
-        solver_nthreads: 16
+        solver_nthreads: 2
