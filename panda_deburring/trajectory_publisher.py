@@ -132,7 +132,7 @@ class TrajectoryPublisher(Node):
         r = self._params.sanding_generator.circle.radius
         frequency = self._params.sanding_generator.circle.frequency
 
-        t = seq / self._params.update_frequency
+        t = seq * self._params.ocp_dt
 
         omega = frequency * 2.0 * np.pi
         x = np.cos(t * omega) * r

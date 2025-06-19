@@ -9,6 +9,12 @@ trajectory_publisher:
     read_only: true
     validation:
       gt<>: [0.0]
+  ocp_dt:
+    type: double
+    description: "Time step [s] of OPC subscribing to the message."
+    read_only: true
+    validation:
+      gt<>: [0.0]
   n_buffer_points:
     type: int
     description: "Number of time points sent at once to the MPC buffer."
