@@ -150,9 +150,6 @@ class ControllerImpl(ControllerImplBase):
         return mpc_debug_data_to_msg(self.mpc.mpc_debug_data)
 
     def on_update(self, state: np.array) -> np.array:
-        # state[-6:] = -state[-6:]
-        # state = np.concatenate((state, np.zeros(6)))
-
         now = time.time()
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv
@@ -160,7 +157,8 @@ class ControllerImpl(ControllerImplBase):
         # Extract state values
         q = state[:nq]
         dq = state[nq : nq + nv]
-        force = state[-6:]
+        force = state[-7:-1]
+        in_contact = state[-1] > 0.5
 
         # Compute gravity torque
         pin.framesForwardKinematics(self._robot_models.robot_model, self._robot_data, q)

@@ -66,7 +66,9 @@ class TrajectoryPublisher(Node):
                 robot_acceleration=np.zeros(len(configuration.robot_velocity)),
                 robot_effort=np.zeros(len(configuration.robot_velocity)),
                 forces={
-                    frame_of_interest: pin.Force(np.array(configuration.desired_force))
+                    frame_of_interest: pin.Force(
+                        np.array(configuration.desired_force), np.zeros(3)
+                    )
                 },
                 end_effector_poses={
                     frame_of_interest: np.concatenate(

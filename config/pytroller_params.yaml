@@ -32,15 +32,15 @@ ft_calibration_filter:
       - agimus_pytroller/ati_mini45/torque.y
       - agimus_pytroller/ati_mini45/torque.z
     measurement_frame_id: ati_mini45_measurement_reference
-    bias_measurement_samples: 500
+    bias_measurement_samples: 50
     gravity_vector: [0.0, 0.0, -9.81]
     invert_forces: true
     contact_detection:
       hysteresis_samples: 5
       augment_state: true
       command_interface_name: agimus_pytroller/in_contact
-      lower_threshold: 0.2
-      upper_threshold: 1.0
+      lower_threshold: 1.0
+      upper_threshold: 3.0
     calibration:
       measurement_frame:
         xyz: [0.0, 0.0, 0.0]
@@ -142,7 +142,7 @@ agimus_pytroller:
       ocp_params_force_feedback:
         dt: 0.002
         horizon_size: 5
-        solver_iters: 15
+        solver_iters: 1
         callbacks: false
         qp_iters: 25
         use_debug_data: false
@@ -152,10 +152,9 @@ agimus_pytroller:
         x_reg_cost_weight: 1.0
         frame_translation_cost_weight: 1.0
         frame_rotation_cost_weight: 1.0
-        frame_velocity_weights: [3.125, 3.125, 3.125, 2., 2., 2.]
         frame_velocity_cost_weight: 1.0
         Kp: [150.0, 150.0, 150.0]
         Kv: [0.5, 0.5, 0.5]
         oPc_offset: [0.0, 0.0, 0.0]
         contact_type: "3D"
-        solver_nthreads: 2
+        solver_nthreads: 16
