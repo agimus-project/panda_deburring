@@ -211,21 +211,34 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_deactivate(
 
 controller_interface::return_type FTCalibrationFilter::update(
     const rclcpp::Time &time, const rclcpp::Duration & /*period*/) {
+  Vector6d force;
+  for (std::size_t i = 0; i < 6; i++) {
+    force[i] = ordered_state_force_interfaces_[i].get().get_value();
+  }
+  force_.toVector() = params_.invert_forces ? -force : force;
+
+  for (std::size_t i = 0; i < q_.size(); i++) {
+    q_[i] = ordered_state_robot_position_interfaces_[i].get().get_value();
+  }
+
+  pinocchio::forwardKinematics(robot_model_, robot_data_, q_);
+  pinocchio::SE3 T_frame = pinocchio::updateFramePlacement(
+      robot_model_, robot_data_, frame_of_interest_id_);
+
+  const double m = params_.calibration.com.mass;
+  const auto f_gravity =
+      calibration_trans_ * (m * calibration_.rotation().transpose() *
+                            T_frame.rotation().transpose() * g_);
+
   // Gather measurements to later remove bias
   if (bias_buffer_cnt_ < bias_measurements_.cols()) {
-    for (std::size_t i = 0; i < bias_measurements_.rows(); i++) {
-      bias_measurements_(i, bias_buffer_cnt_) =
-          ordered_state_force_interfaces_[i].get().get_value();
-    }
+    bias_measurements_.col(bias_buffer_cnt_) = force_.toVector() - f_gravity;
     bias_buffer_cnt_++;
     return controller_interface::return_type::OK;
   }
   // If all data required was acquired, compute average bias
   if (!bias_computed_) {
     avg_bias_.toVector() = bias_measurements_.rowwise().mean();
-    if (params_.invert_forces) {
-      avg_bias_.toVector() = -avg_bias_.toVector();
-    }
     bias_computed_ = true;
     RCLCPP_INFO(this->get_node()->get_logger(),
                 "Bias computation finished. Bias Values are:\n"
@@ -238,27 +251,10 @@ controller_interface::return_type FTCalibrationFilter::update(
                 avg_bias_.linear()[0], avg_bias_.linear()[1],
                 avg_bias_.linear()[2], avg_bias_.angular()[0],
                 avg_bias_.angular()[1], avg_bias_.angular()[2]);
+    return controller_interface::return_type::OK;
   }
-
-  Vector6d force;
-  for (std::size_t i = 0; i < 6; i++) {
-    force[i] = ordered_state_force_interfaces_[i].get().get_value();
-  }
-  force_.toVector() = params_.invert_forces ? force : -force;
-
-  for (std::size_t i = 0; i < q_.size(); i++) {
-    q_[i] = ordered_state_robot_position_interfaces_[i].get().get_value();
-  }
-
-  pinocchio::forwardKinematics(robot_model_, robot_data_, q_);
-  pinocchio::SE3 T_frame = pinocchio::updateFramePlacement(
-      robot_model_, robot_data_, frame_of_interest_id_);
 
   const auto f = force_.toVector() - avg_bias_.toVector();
-  const double m = params_.calibration.com.mass;
-  const auto f_gravity =
-      calibration_trans_ * (m * calibration_.rotation().transpose() *
-                            T_frame.rotation().transpose() * g_);
   Vector6d f_out = f - f_gravity;
 
   for (std::size_t i = 0; i < f_out.size(); i++) {
