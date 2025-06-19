@@ -13,6 +13,24 @@ from agimus_controller.trajectory import WeightedTrajectoryPoint
 
 
 @dataclass
+class OCPReferences:
+    reference: Any
+    weights: np.array
+    frame_id: Any = None
+    use_residual: bool = True
+
+
+@dataclass
+class OCPCosts:
+    state_reg: OCPReferences | None = None
+    frame_translation: OCPReferences | None = None
+    frame_rotation: OCPReferences | None = None
+    frame_velocity: OCPReferences | None = None
+    force_tracking: OCPReferences | None = None
+    control_reg: OCPReferences | None = None
+
+
+@dataclass
 class OCPParamsCrocoForceFeedback(OCPParamsBaseCroco):
     with_gravity_torque_reg: bool = False
 
@@ -124,6 +142,8 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
             self._force_mask = None
         else:
             self._force_mask = "xyz".index(self._ocp_params.contact_type[-1])
+
+        self._references_cache: list[OCPCosts] = []
 
     def create_running_model_list(self) -> list[crocoddyl.ActionModelAbstract]:
         running_model_list = []
@@ -386,6 +406,57 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
         terminal_model.differential.armature = self._robot_models.armature
         return terminal_model
 
+    def create_reference_cache(self):
+        models = [self._solver.problem.runningModels]
+        models.append(self._solver.problem.terminalModel)
+
+        for model in models:
+            running_model_diff = model.differential
+
+            # Create new cache object
+            ocp_ref_cache = OCPCosts()
+
+            # By using `__dict__["element"]` obtain references to functions in order to cache them
+            state_reg = running_model_diff.costs.costs["stateReg"]
+            ocp_ref_cache.state_reg = OCPReferences(
+                reference=state_reg.cost.residual.__dict__["reference"],
+                weights=state_reg.cost.activation.__dict__["weights"],
+            )
+
+            frame_translation = running_model_diff.costs.costs["frameTranslationCost"]
+            ocp_ref_cache.frame_translation = OCPReferences(
+                reference=frame_translation.cost.residual.__dict__["reference"],
+                weights=frame_translation.cost.activation.__dict__["weights"],
+                frame_id=frame_translation.cost.residual.__dict__["id"],
+            )
+
+            frame_rotation = running_model_diff.costs.costs["frameRotationCost"]
+            ocp_ref_cache.frame_rotation = OCPReferences(
+                reference=frame_rotation.cost.residual.__dict__["reference"],
+                weights=frame_rotation.cost.activation.__dict__["weights"],
+                frame_id=frame_rotation.cost.residual.__dict__["id"],
+            )
+
+            frame_velocity = running_model_diff.costs.costs["frameVelocityCost"]
+            ocp_ref_cache.frame_velocity = OCPReferences(
+                reference=frame_velocity.cost.residual.__dict__["reference"],
+                weights=frame_velocity.cost.activation.__dict__["weights"],
+                frame_id=frame_velocity.cost.residual.__dict__["id"],
+            )
+
+            ocp_ref_cache.control_reg = OCPReferences(
+                reference=None,
+                weights=running_model_diff.__dict__["tau_grav_weight"],
+            )
+
+            ocp_ref_cache.force_tracking = OCPReferences(
+                use_residual=running_model_diff.__dict__["active_contact"],
+                reference=running_model_diff.__dict__["f_des"],
+                weights=running_model_diff.__dict__["f_weight"],
+            )
+
+            self._references_cache.append(ocp_ref_cache)
+
     def set_reference_weighted_trajectory(
         self, reference_weighted_trajectory: list[WeightedTrajectoryPoint]
     ):
@@ -393,192 +464,57 @@ class OCPCrocoForceFeedback(OCPBaseCroco):
         assert len(reference_weighted_trajectory) == self.n_controls + 1
 
         # Modify running costs reference and weights
-        for i, ref_weighted_pt in enumerate(reference_weighted_trajectory[:-1]):
-            # Modifying the state regularization cost
-            state_reg = self._solver.problem.runningModels[i].differential.costs.costs[
-                "stateReg"
-            ]
-            state_reg.cost.residual.reference = np.concatenate(
+        for i in range(len(reference_weighted_trajectory)):
+            ref_weighted_pt = reference_weighted_trajectory[i]
+            ocp_ref = self._references_cache[i]
+
+            ocp_ref.state_reg.reference = np.concatenate(
                 (
                     ref_weighted_pt.point.robot_configuration,
                     ref_weighted_pt.point.robot_velocity,
                 )
             )
-            # Modify running cost weight
-            state_reg.cost.activation.weights = np.concatenate(
+            ocp_ref.state_reg.weights = np.concatenate(
                 (
-                    ref_weighted_pt.weights.w_robot_configuration,
-                    ref_weighted_pt.weights.w_robot_velocity,
+                    ref_weighted_pt.point.robot_configuration,
+                    ref_weighted_pt.point.robot_velocity,
                 )
             )
 
-            # Modify control weights
-            if self._solver.problem.runningModels[
-                i
-            ].differential.with_gravity_torque_reg:
-                effort_weights = ref_weighted_pt.weights.w_robot_effort
-                assert np.all(np.isclose(effort_weights, effort_weights[0])), (
-                    "All effort weights must be the same!"
-                )
-                self._solver.problem.runningModels[
-                    i
-                ].differential.tau_grav_weight = effort_weights[0]
-            # Modify end effector frame cost
-
-            # setting running model goal tracking reference, weight and frame id
-            # assuming exactly one end-effector tracking reference was passed to the trajectory
-            ee_names = list(iter(ref_weighted_pt.weights.w_end_effector_poses))
-            if len(ee_names) > 1:
-                raise ValueError("Only one end-effector tracking reference is allowed.")
-            ee_name = ee_names[0]
+            ee_name = ref_weighted_pt.weights.w_end_effector_poses.keys()[0]
             ee_id = self._robot_models.robot_model.getFrameId(ee_name)
-            frame_translation_cost = self._solver.problem.runningModels[
-                i
-            ].differential.costs.costs["frameTranslationCost"]
-            frame_translation_cost.cost.residual.id = ee_id
-            frame_translation_cost.cost.activation.weights = (
-                ref_weighted_pt.weights.w_end_effector_poses[ee_name][:3]
-            )
-            frame_translation_cost.cost.residual.reference = (
+
+            ocp_ref.frame_translation.frame_id = ee_id
+            ocp_ref.frame_translation.reference = (
                 ref_weighted_pt.point.end_effector_poses[ee_name].translation
             )
+            ocp_ref.frame_translation.weights = (
+                ref_weighted_pt.weights.w_end_effector_poses[ee_name][:3]
+            )
 
-            frame_rotation_cost = self._solver.problem.runningModels[
-                i
-            ].differential.costs.costs["frameRotationCost"]
-            frame_rotation_cost.cost.residual.id = ee_id
-            frame_rotation_cost.cost.activation.weights = (
-                ref_weighted_pt.weights.w_end_effector_poses[ee_name][3:]
+            ocp_ref.frame_rotation.frame_id = ee_id
+            ocp_ref.frame_rotation.reference = ref_weighted_pt.point.end_effector_poses[
+                ee_name
+            ].rotation
+            ocp_ref.frame_rotation.weights = (
+                ref_weighted_pt.weights.w_end_effector_poses[ee_name][:3]
             )
-            frame_rotation_cost.cost.residual.reference = (
-                ref_weighted_pt.point.end_effector_poses[ee_name].rotation
-            )
-            frame_velocity_cost = self._solver.problem.runningModels[
-                i
-            ].differential.costs.costs["frameVelocityCost"]
-            frame_velocity_cost.cost.residual.id = ee_id
-            frame_velocity_cost.cost.activation.weights = (
-                ref_weighted_pt.weights.w_end_effector_velocities[ee_name]
-            )
-            frame_velocity_cost.cost.residual.reference = (
+
+            ocp_ref.frame_velocity.frame_id = ee_id
+            ocp_ref.frame_velocity.reference = (
                 ref_weighted_pt.point.end_effector_velocities[ee_name]
             )
+            ocp_ref.frame_velocity.weights = (
+                ref_weighted_pt.weights.w_end_effector_velocities[ee_name]
+            )
 
-            ee_names = list(iter(ref_weighted_pt.weights.w_forces))
-            if len(ee_names) > 1:
-                raise ValueError(
-                    "Only one end-effector force tracking reference is allowed."
-                )
-            ee_name = ee_names[0]
+            ocp_ref.control_reg.weights = ref_weighted_pt.weights.w_robot_effort[0]
+
             desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name]
-
-            # If weights are non zero, assume robot expects to be in contact in this state
-            if np.sum(np.abs(desired_force_weights)) > 1e-9:
-                self._solver.problem.runningModels[i].differential.active_contact = True
-                self._solver.problem.runningModels[
-                    i
-                ].differential.with_force_cost = True
-                self._solver.problem.runningModels[
-                    i
-                ].differential.f_des = ref_weighted_pt.point.forces[ee_name].linear
-                self._solver.problem.runningModels[
-                    i
-                ].differential.f_weight = desired_force_weights
-            else:
-                self._solver.problem.runningModels[
-                    i
-                ].differential.active_contact = False
-                self._solver.problem.runningModels[
-                    i
-                ].differential.with_force_cost = False
-                self._solver.problem.runningModels[i].differential.f_des = np.zeros(3)
-                self._solver.problem.runningModels[i].differential.f_weight = np.zeros(
-                    3
-                )
-
-        ref_weighted_pt = reference_weighted_trajectory[-1]
-
-        # Modify terminal costs reference and weights
-        state_reg = self._solver.problem.terminalModel.differential.costs.costs[
-            "stateReg"
-        ]
-        state_reg.cost.residual.reference = np.concatenate(
-            (
-                ref_weighted_pt.point.robot_configuration,
-                ref_weighted_pt.point.robot_velocity,
+            ocp_ref.frame_velocity.use_residual = (
+                np.sum(np.abs(desired_force_weights)) > 1e-9
             )
-        )
-
-        state_reg.cost.activation.weights = np.concatenate(
-            (
-                ref_weighted_pt.weights.w_robot_configuration,
-                ref_weighted_pt.weights.w_robot_velocity,
-            )
-        )
-        # Modify end effector frame cost
-
-        ee_names = list(iter(ref_weighted_pt.weights.w_end_effector_poses))
-        ee_name = ee_names[0]
-        frame_translation_cost = (
-            self._solver.problem.terminalModel.differential.costs.costs[
-                "frameTranslationCost"
-            ]
-        )
-        frame_translation_cost.cost.residual.id = ee_id
-        frame_translation_cost.cost.activation.weights = (
-            ref_weighted_pt.weights.w_end_effector_poses[ee_name][:3]
-        )
-        frame_translation_cost.cost.residual.reference = (
-            ref_weighted_pt.point.end_effector_poses[ee_name].translation
-        )
-
-        frame_rotation_cost = (
-            self._solver.problem.terminalModel.differential.costs.costs[
-                "frameRotationCost"
-            ]
-        )
-        frame_rotation_cost.cost.residual.id = ee_id
-        frame_rotation_cost.cost.activation.weights = (
-            ref_weighted_pt.weights.w_end_effector_poses[ee_name][3:]
-        )
-        frame_rotation_cost.cost.residual.reference = (
-            ref_weighted_pt.point.end_effector_poses[ee_name].rotation
-        )
-        frame_velocity_cost = (
-            self._solver.problem.terminalModel.differential.costs.costs[
-                "frameVelocityCost"
-            ]
-        )
-        frame_velocity_cost.cost.residual.id = ee_id
-        frame_velocity_cost.cost.activation.weights = (
-            ref_weighted_pt.weights.w_end_effector_velocities[ee_name]
-        )
-        frame_velocity_cost.cost.residual.reference = (
-            ref_weighted_pt.point.end_effector_velocities[ee_name]
-        )
-
-        ee_names = list(iter(ref_weighted_pt.weights.w_forces))
-        if len(ee_names) > 1:
-            raise ValueError(
-                "Only one end-effector force tracking reference is allowed."
-            )
-        ee_name = ee_names[0]
-        desired_force_weights = ref_weighted_pt.weights.w_forces[ee_name][
-            self._force_mask
-        ]
-        # If weights are non zero, assume robot expects to be in contact in this state
-        if np.sum(np.abs(desired_force_weights)) > 1e-9:
-            self._solver.problem.terminalModel.differential.active_contact = True
-            self._solver.problem.terminalModel.differential.with_force_cost = True
-            self._solver.problem.terminalModel.differential.f_des = (
-                ref_weighted_pt.point.forces[ee_name].linear
-            )
-            # self._solver.problem.terminalModel.differential.f_weight = (
-            #     desired_force_weights
-            # )
-
-        else:
-            self._solver.problem.terminalModel.differential.active_contact = False
-            self._solver.problem.terminalModel.differential.with_force_cost = False
-            self._solver.problem.terminalModel.differential.f_des = np.zeros(3)
-            self._solver.problem.terminalModel.differential.f_weight = np.zeros(3)
+            ocp_ref.frame_velocity.reference = ref_weighted_pt.point.forces[
+                ee_name
+            ].linear
+            ocp_ref.frame_velocity.weights = desired_force_weights
