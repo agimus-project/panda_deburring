@@ -3,8 +3,14 @@ trajectory_publisher_node:
     trajectory_generator_name: sanding_generator
     update_frequency: 100.0
     ocp_dt: 0.002
-    n_buffer_points: 5
+    n_buffer_points: 50
     frame_of_interest: ati_mini45_measurement_reference
+    robot_base_frame: fer_link0
+    initialization:
+      max_linear_velocity: 0.005
+      max_angular_velocity: 0.5
+      pose_tolerance: 0.02
+      rot_tolerance: 0.1
     initial_targets:
       robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
@@ -16,7 +22,7 @@ trajectory_publisher_node:
       robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       frame_rotation: [5.0, 5.0, 0.0]
-      frame_translation: [30.0, 30.0, 1.0]
+      frame_translation: [30.0, 30.0, 5.0]
       frame_angular_velocity: [0.0, 0.0, 0.0]
       frame_linear_velocity: [2.0, 2.0, 0.0]
       desired_force: [0.0, 0.0, 0.0]

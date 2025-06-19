@@ -14,7 +14,8 @@ from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
-from tf2_geometry_msgs import do_transform_pose
+from std_msgs.msg import Int64
+from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
 
@@ -43,13 +44,21 @@ class TrajectoryPublisher(Node):
             ),
         )
 
+        self._buffer_size_subscriber = self.create_subscription(
+            Int64,
+            "buffer_size",
+            self._buffer_size_cb,
+            10,
+        )
+
         # Transform buffers
         self._buffer = Buffer()
-        self._listener = TransformListener(self._buffer, self, spin_thread=True)
+        self._listener = TransformListener(self._buffer, self)
 
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
         self._update_params(first_call=True)
         self._sequence_cnt = 0
+        self._buffer_size = self._params.n_buffer_points
 
         self._initial_configuration = pin.SE3()
         self._trajectory_offset = 0
@@ -64,6 +73,9 @@ class TrajectoryPublisher(Node):
             1.0 / self._params.update_frequency, self._publish_mpc_input_cb
         )
         self.get_logger().info("Node started.")
+
+    def _buffer_size_cb(self, msg: Int64) -> None:
+        self._buffer_size = msg.data
 
     def _update_params(self, first_call: bool = False) -> None:
         """Updates values of dynamic parameters and updated dependent objects.
@@ -136,7 +148,7 @@ class TrajectoryPublisher(Node):
                 point=traj_point, weights=traj_weights
             )
 
-    def _circle_generator(self, seq: int) -> MpcInput:
+    def _circle_generator(self, seq: int) -> WeightedTrajectoryPoint:
         """Generates circular motion around specified point.
 
         Args:
@@ -166,19 +178,28 @@ class TrajectoryPublisher(Node):
             np.array(self._params.initial_targets.frame_translation) + circle
         )
 
-        return weighted_traj_point_to_mpc_msg(point)
+        point.point.end_effector_velocities[
+            self._params.frame_of_interest
+        ].linear = dcircle
+
+        return point
 
     def _check_can_tarnsform(self) -> bool:
         parent = self._params.robot_base_frame
         child = self._params.frame_of_interest
-        time = self.get_clock().now()
-        return self._buffer.can_transform(parent, child, time)
+        try:
+            self._buffer.lookup_transform(parent, child, rclpy.time.Time())
+            return True
+        except TransformException as ex:
+            self.get_logger().info(f"Could not transform {parent} to {child}: {ex}")
+            return False
 
     def _get_current_pose(self) -> pin.SE3:
         parent = self._params.robot_base_frame
         child = self._params.frame_of_interest
-        time = self.get_clock().now()
-        transform = self._buffer.lookup_transform(parent, child, time).transform
+        transform = self._buffer.lookup_transform(
+            parent, child, rclpy.time.Time()
+        ).transform
         return pin.XYZQUATToSE3(
             np.array(
                 [
@@ -221,16 +242,15 @@ class TrajectoryPublisher(Node):
 
             current = self._get_current_pose()
             end = pin.XYZQUATToSE3(
-                self._start_point.point.point.end_effector_poses[
+                self._start_point.point.end_effector_poses[
                     self._params.frame_of_interest
                 ]
             )
             inputs = []
-            for _ in range(self._params.n_buffer_points):
+            for _ in range(self._params.n_buffer_points - self._buffer_size):
                 vel = pin.log6(current.inverse() * end)
                 lin_vel = np.linalg.norm(vel.linear)
-                ang_vel = np.linalg.norm(vel.angular)
-                if lin_vel < pose_tolerance and ang_vel < rot_tolerance:
+                if lin_vel < pose_tolerance and np.all(vel.angular < rot_tolerance):
                     self.get_logger().info(
                         "Initial position reached. Following trajectory."
                     )
@@ -240,6 +260,7 @@ class TrajectoryPublisher(Node):
                 if lin_vel > max_lin_vel:
                     vel.linear = vel.linear / lin_vel * max_lin_vel
 
+                ang_vel = np.linalg.norm(vel.angular)
                 if ang_vel > max_ang_vel:
                     vel.angular = vel.linear / ang_vel * max_ang_vel
 
@@ -248,15 +269,17 @@ class TrajectoryPublisher(Node):
                 point.point.end_effector_poses[self._params.frame_of_interest] = (
                     pin.SE3ToXYZQUAT(current)
                 )
-                point.point.robot_velocity[self._params.frame_of_interest] = vel
-                inputs.append(point)
-            mpc_input_array = MpcInputArray(inputs)
+                # point.point.end_effector_velocities[self._params.frame_of_interest] = vel
+                inputs.append(weighted_traj_point_to_mpc_msg(point))
+            mpc_input_array = MpcInputArray(inputs=inputs)
 
         elif self._motion_phase == MotionPhases.perform_motion:
-            end_seq = self._sequence_cnt + self._params.n_buffer_points
+            end_seq = self._sequence_cnt + (
+                self._params.n_buffer_points - self._buffer_size
+            )
             mpc_input_array = MpcInputArray(
                 inputs=[
-                    self._generator_cb(seq)
+                    weighted_traj_point_to_mpc_msg(self._generator_cb(seq))
                     for seq in range(self._sequence_cnt, end_seq)
                 ]
             )

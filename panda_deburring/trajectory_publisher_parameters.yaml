@@ -27,6 +27,11 @@ trajectory_publisher:
     description: "Name of a frame associated to contact point."
     validation:
       not_empty<>: []
+  robot_base_frame:
+    type: string
+    description: "Robot base frame used to compute pose of the end effector."
+    validation:
+      not_empty<>: []
   initial_targets:
     robot_configuration:
       type: double_array
@@ -54,6 +59,31 @@ trajectory_publisher:
       description: "Desired force [N] applied by `frame_of_interest`."
       validation:
         fixed_size<>: [3]
+  initialization:
+    max_linear_velocity:
+      type: double
+      description: "Maximum linear velocity [m/s] of the end effector."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+    max_angular_velocity:
+      type: double
+      description: "Maximum linear angular [rad/s] of the end effector."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+    pose_tolerance:
+      type: double
+      description: "Final pose tolerance [m]."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+    rot_tolerance:
+      type: double
+      description: "Final rotation tolerance [rad]."
+      read_only: true
+      validation:
+        gt<>: [0.0]
   weights:
     robot_configuration:
       type: double_array
