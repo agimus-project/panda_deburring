@@ -71,7 +71,7 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
   try {
     // register ft sensor data publisher
     contact_publisher_ = get_node()->create_publisher<std_msgs::msg::Bool>(
-        "~/contact", rclcpp::QoS(1).transient_local());
+        "~/contact", rclcpp::SystemDefaultsQoS());
     realtime_contact_publisher_ =
         std::make_unique<ContactPublisher>(contact_publisher_);
   } catch (const std::exception &e) {
@@ -237,6 +237,7 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
     filters_.push_back(ButterworthFilter(a, b));
   }
 
+  contact_detector_.set_axis_mask(params_.contact_detection.axis_mask);
   contact_detector_.set_hysteresis_samples(
       params_.contact_detection.hysteresis_samples);
   contact_detector_.set_lower_threshold(
@@ -280,7 +281,6 @@ controller_interface::return_type FTCalibrationFilter::update(
     RCLCPP_INFO(this->get_node()->get_logger(), "Parameters were updated");
   }
 
-  
   for (std::size_t i = 0; i < 6; i++) {
     force[i] = ordered_state_force_interfaces_[i].get().get_value();
   }
@@ -345,12 +345,10 @@ controller_interface::return_type FTCalibrationFilter::update(
   contact_detector_.update(f_out);
   bool in_contact = contact_detector_.in_contact();
 
-  if (last_in_contact_ != in_contact && realtime_contact_publisher_ &&
-      realtime_contact_publisher_->trylock()) {
+  if (realtime_contact_publisher_ && realtime_contact_publisher_->trylock()) {
     realtime_contact_publisher_->msg_.data = in_contact;
     realtime_contact_publisher_->unlockAndPublish();
   }
-  last_in_contact_ = in_contact;
 
   if (params_.contact_detection.augment_state) {
     ordered_command_interfaces_[ordered_command_interfaces_.size() - 1]

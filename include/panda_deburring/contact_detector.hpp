@@ -1,17 +1,18 @@
 #ifndef PANDA_DEBURRING__CONTACT_DETECTOR_
 #define PANDA_DEBURRING__CONTACT_DETECTOR_
-
+#include <Eigen/Dense>
 #include <pinocchio/spatial/force.hpp>
+#include <string>
 
 namespace ft_calibration_filter {
 class ContactDetector {
  public:
   ContactDetector() {}
 
-  void update(const pinocchio::Force &force) {
+  void update(const pinocchio::Force& force) {
     const double thresh =
         filterted_state_ ? lower_threshold_ : upper_threshold_;
-    last_measured_state_ = force.linear().norm() > thresh;
+    last_measured_state_ = (force.linear().cwiseProduct(mask_)).norm() > thresh;
   }
 
   bool in_contact() {
@@ -48,6 +49,13 @@ class ContactDetector {
 
   double get_upper_threshold() const { return upper_threshold_; }
 
+  void set_axis_mask(const std::string& axis_mask) {
+    const std::string axies = "xyz";
+    for (std::size_t i = 0; i < 3; i++) {
+      mask_[i] = axis_mask.find(axies[i]) != std::string::npos ? 1.0 : 0.0;
+    }
+  }
+
  private:
   bool last_measured_state_ = false;
   bool filterted_state_ = false;
@@ -55,6 +63,7 @@ class ContactDetector {
   unsigned int hysteresis_samples_ = 0;
   double lower_threshold_ = 0.0;
   double upper_threshold_ = 0.0;
+  Eigen::Vector3d mask_;
 };
 }  // namespace ft_calibration_filter
 

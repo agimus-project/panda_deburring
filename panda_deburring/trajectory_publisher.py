@@ -55,11 +55,7 @@ class TrajectoryPublisher(Node):
             Bool,
             "/ft_calibration_filter/contact",
             self._in_contact_cb,
-            qos_profile=QoSProfile(
-                depth=1,
-                durability=DurabilityPolicy.TRANSIENT_LOCAL,
-                reliability=ReliabilityPolicy.RELIABLE,
-            ),
+            10,
         )
 
         # Transform buffers
@@ -237,15 +233,15 @@ class TrajectoryPublisher(Node):
         self._update_params()
 
         if self._motion_phase == MotionPhases.wait_for_data:
-            if self._buffer_size is None:
+            if self._in_contact is None:
                 self.get_logger().info(
-                    f"Buffer size information to be published...",
+                    f"Waiting for contact info to be published...",
                     throttle_duration_sec=5.0,
                 )
                 return
-            if self._in_contact is None:
+            if self._buffer_size is None:
                 self.get_logger().info(
-                    f"Buffer size information to be published...",
+                    f"Waiting for buffer size information to be published...",
                     throttle_duration_sec=5.0,
                 )
                 return

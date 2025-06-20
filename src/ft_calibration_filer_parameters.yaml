@@ -114,3 +114,7 @@ ft_calibration_filter:
       description: "Threshold used to detect transition from not in contact -> in contact."
       validation:
         gt<>: [0.0]
+    axis_mask:
+      type: string
+      description: "Mask applied to contact forces in order to determine the contact."
+      read_only: true
