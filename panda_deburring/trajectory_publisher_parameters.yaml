@@ -85,6 +85,11 @@ trajectory_publisher:
       validation:
         gt<>: [0.0]
   weights:
+    type: string_array
+    default_value: ["initialize_weights", "seek_contact_weights", "in_contact_weights"]
+    description: "List of names associated to different phases."
+    read_only: true
+  __map_weights:
     robot_configuration:
       type: double_array
       description: "Weights associated to regularization around desired robot configuration."

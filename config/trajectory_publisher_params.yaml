@@ -7,17 +7,35 @@ trajectory_publisher_node:
     frame_of_interest: ati_mini45_measurement_reference
     robot_base_frame: fer_link0
     initialization:
-      max_linear_velocity: 0.005
-      max_angular_velocity: 0.5
-      pose_tolerance: 0.02
-      rot_tolerance: 0.1
+      max_linear_velocity: 0.1
+      max_angular_velocity: 1.0
+      pose_tolerance: 0.005
+      rot_tolerance: 0.01
     initial_targets:
       robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       frame_translation: [0.5, 0.0, 0.4]
       frame_rotation: [0.0, 0.0, 1.0, 0.0]
-      desired_force: [0.0, 0.0, 1.0]
-    weights:
+      desired_force: [0.0, 0.0, 0.0]
+    initialize_weights:
+      robot_configuration: [1.0, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+      robot_velocity: [0.1, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      frame_rotation: [120.0, 120.0, 120.0]
+      frame_translation: [40.0, 40.0, 40.0]
+      frame_angular_velocity: [10.0, 10.0, 10.0]
+      frame_linear_velocity: [0.1, 0.1, 0.1]
+      desired_force: [0.0, 0.0, 0.0]
+    seek_contact_weights:
+      robot_configuration: [0.001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      frame_rotation: [5.0, 5.0, 0.0]
+      frame_translation: [30.0, 30.0, 10.0]
+      frame_angular_velocity: [0.0, 0.0, 0.0]
+      frame_linear_velocity: [2.0, 2.0, 0.0]
+      desired_force: [0.0, 0.0, 0.0]
+    in_contact_weights:
       robot_configuration: [0.001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
       robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]

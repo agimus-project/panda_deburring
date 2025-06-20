@@ -58,7 +58,7 @@ class TrajectoryPublisher(Node):
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
         self._update_params(first_call=True)
         self._sequence_cnt = 0
-        self._buffer_size = self._params.n_buffer_points
+        self._buffer_size = None
 
         self._initial_configuration = pin.SE3()
         self._trajectory_offset = 0
@@ -86,67 +86,70 @@ class TrajectoryPublisher(Node):
         if self._param_listener.is_old(self._params) or first_call:
             self._param_listener.refresh_dynamic_parameters()
             self._params = self._param_listener.get_params()
+            self._update_weighted_trajectory_point("initialize_weights")
 
-            frame_of_interest = self._params.frame_of_interest
+    def _update_weighted_trajectory_point(self, weights_name: str) -> None:
+        self.get_logger().error(f"Setting weights to '{weights_name}'.")
 
-            configuration = self._params.initial_targets
-            traj_point = TrajectoryPoint(
-                time_ns=time.time_ns(),
-                robot_configuration=np.asarray(configuration.robot_configuration),
-                robot_velocity=np.asarray(configuration.robot_velocity),
-                robot_acceleration=np.zeros(len(configuration.robot_velocity)),
-                robot_effort=np.zeros(len(configuration.robot_velocity)),
-                forces={
-                    frame_of_interest: pin.Force(
-                        np.array(configuration.desired_force), np.zeros(3)
-                    )
-                },
-                end_effector_poses={
-                    frame_of_interest: np.concatenate(
-                        (
-                            np.asarray(configuration.frame_translation),
-                            np.asarray(configuration.frame_rotation),
-                        ),
-                    )
-                },
-                end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
-            )
+        frame_of_interest = self._params.frame_of_interest
+        configuration = self._params.initial_targets
+        traj_point = TrajectoryPoint(
+            time_ns=time.time_ns(),
+            robot_configuration=np.asarray(configuration.robot_configuration),
+            robot_velocity=np.asarray(configuration.robot_velocity),
+            robot_acceleration=np.zeros(len(configuration.robot_velocity)),
+            robot_effort=np.zeros(len(configuration.robot_velocity)),
+            forces={
+                frame_of_interest: pin.Force(
+                    np.array(configuration.desired_force), np.zeros(3)
+                )
+            },
+            end_effector_poses={
+                frame_of_interest: np.concatenate(
+                    (
+                        np.asarray(configuration.frame_translation),
+                        np.asarray(configuration.frame_rotation),
+                    ),
+                )
+            },
+            end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
+        )
 
-            weights = self._params.weights
-            traj_weights = TrajectoryPointWeights(
-                w_robot_configuration=weights.robot_configuration,
-                w_robot_velocity=weights.robot_velocity,
-                w_robot_acceleration=[0.0] * len(weights.robot_configuration),
-                w_robot_effort=weights.robot_effort,
-                w_forces={
-                    frame_of_interest: np.concatenate(
-                        (
-                            np.asarray(weights.desired_force),
-                            np.zeros(3),
-                        )
+        weights = self._params.get_entry(weights_name)
+        traj_weights = TrajectoryPointWeights(
+            w_robot_configuration=weights.robot_configuration,
+            w_robot_velocity=weights.robot_velocity,
+            w_robot_acceleration=[0.0] * len(weights.robot_configuration),
+            w_robot_effort=weights.robot_effort,
+            w_forces={
+                frame_of_interest: np.concatenate(
+                    (
+                        np.asarray(weights.desired_force),
+                        np.zeros(3),
                     )
-                },
-                w_end_effector_poses={
-                    frame_of_interest: np.concatenate(
-                        (
-                            np.asarray(weights.frame_translation),
-                            np.asarray(weights.frame_rotation),
-                        )
+                )
+            },
+            w_end_effector_poses={
+                frame_of_interest: np.concatenate(
+                    (
+                        np.asarray(weights.frame_translation),
+                        np.asarray(weights.frame_rotation),
                     )
-                },
-                w_end_effector_velocities={
-                    frame_of_interest: np.concatenate(
-                        (
-                            np.asarray(weights.frame_linear_velocity),
-                            np.asarray(weights.frame_angular_velocity),
-                        )
+                )
+            },
+            w_end_effector_velocities={
+                frame_of_interest: np.concatenate(
+                    (
+                        np.asarray(weights.frame_linear_velocity),
+                        np.asarray(weights.frame_angular_velocity),
                     )
-                },
-            )
+                )
+            },
+        )
 
-            self._base_trajectory_point = WeightedTrajectoryPoint(
-                point=traj_point, weights=traj_weights
-            )
+        self._base_trajectory_point = WeightedTrajectoryPoint(
+            point=traj_point, weights=traj_weights
+        )
 
     def _circle_generator(self, seq: int) -> WeightedTrajectoryPoint:
         """Generates circular motion around specified point.
@@ -191,7 +194,7 @@ class TrajectoryPublisher(Node):
             self._buffer.lookup_transform(parent, child, rclpy.time.Time())
             return True
         except TransformException as ex:
-            self.get_logger().info(f"Could not transform {parent} to {child}: {ex}")
+            self.get_logger().warn(f"Could not transform {parent} to {child}: {ex}")
             return False
 
     def _get_current_pose(self) -> pin.SE3:
@@ -219,6 +222,13 @@ class TrajectoryPublisher(Node):
         self._update_params()
 
         if self._motion_phase == MotionPhases.wait_for_data:
+            if self._buffer_size is None:
+                self.get_logger().info(
+                    f"Buffer size information to be published...",
+                    throttle_duration_sec=5.0,
+                )
+                return
+
             if not self._check_can_tarnsform():
                 self.get_logger().info(
                     f"Waiting for transformation between '{self._params.robot_base_frame}' "
@@ -228,19 +238,16 @@ class TrajectoryPublisher(Node):
                 return
             self._motion_phase = MotionPhases.initialize
             self._start_point = self._generator_cb(0)
+            self._current = self._get_current_pose()
             self._sequence_cnt += 1
             return
 
         elif self._motion_phase == MotionPhases.initialize:
-            self.get_logger().info(
-                "Initial configuration received. Generating motion...", once=True
-            )
             max_lin_vel = self._params.initialization.max_linear_velocity
             max_ang_vel = self._params.initialization.max_angular_velocity
             pose_tolerance = self._params.initialization.pose_tolerance
             rot_tolerance = self._params.initialization.rot_tolerance
 
-            current = self._get_current_pose()
             end = pin.XYZQUATToSE3(
                 self._start_point.point.end_effector_poses[
                     self._params.frame_of_interest
@@ -248,32 +255,37 @@ class TrajectoryPublisher(Node):
             )
             inputs = []
             for _ in range(self._params.n_buffer_points - self._buffer_size):
-                vel = pin.log6(current.inverse() * end)
+                vel = pin.log6(self._current.inverse() * end)
                 lin_vel = np.linalg.norm(vel.linear)
                 if lin_vel < pose_tolerance and np.all(vel.angular < rot_tolerance):
                     self.get_logger().info(
                         "Initial position reached. Following trajectory."
                     )
                     self._motion_phase = MotionPhases.perform_motion
+                    self._update_weighted_trajectory_point("seek_contact_weights")
                     break
 
                 if lin_vel > max_lin_vel:
                     vel.linear = vel.linear / lin_vel * max_lin_vel
 
-                ang_vel = np.linalg.norm(vel.angular)
-                if ang_vel > max_ang_vel:
-                    vel.angular = vel.linear / ang_vel * max_ang_vel
-
-                current = current * pin.exp6(vel)
+                if np.any(vel.angular > max_ang_vel):
+                    vel.angular = vel.linear / np.max(vel.angular) * max_ang_vel
+                self._current = self._current * pin.exp6(vel * self._params.ocp_dt)
                 point = copy.deepcopy(self._start_point)
                 point.point.end_effector_poses[self._params.frame_of_interest] = (
-                    pin.SE3ToXYZQUAT(current)
+                    pin.SE3ToXYZQUAT(self._current)
                 )
-                # point.point.end_effector_velocities[self._params.frame_of_interest] = vel
+                # print(pin.SE3ToXYZQUAT(self._current), flush=True)
+                point.point.end_effector_velocities[self._params.frame_of_interest] = (
+                    vel
+                )
                 inputs.append(weighted_traj_point_to_mpc_msg(point))
             mpc_input_array = MpcInputArray(inputs=inputs)
 
         elif self._motion_phase == MotionPhases.perform_motion:
+            self.get_logger().info(
+                "Initial configuration received. Generating motion...", once=True
+            )
             end_seq = self._sequence_cnt + (
                 self._params.n_buffer_points - self._buffer_size
             )
