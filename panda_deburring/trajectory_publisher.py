@@ -13,8 +13,8 @@ from agimus_controller.trajectory import (
 from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
-from std_msgs.msg import Int64
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from std_msgs.msg import Bool, Int64
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -51,14 +51,28 @@ class TrajectoryPublisher(Node):
             10,
         )
 
+        self._in_contact_subscriber = self.create_subscription(
+            Bool,
+            "/ft_calibration_filter/contact",
+            self._in_contact_cb,
+            qos_profile=QoSProfile(
+                depth=1,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                reliability=ReliabilityPolicy.RELIABLE,
+            ),
+        )
+
         # Transform buffers
         self._buffer = Buffer()
         self._listener = TransformListener(self._buffer, self)
 
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
+        self._weights_name = "initialize"
         self._update_params(first_call=True)
         self._sequence_cnt = 0
         self._buffer_size = None
+        self._in_contact = None
+        self._last_in_contact_state = False
 
         self._initial_configuration = pin.SE3()
         self._trajectory_offset = 0
@@ -77,6 +91,9 @@ class TrajectoryPublisher(Node):
     def _buffer_size_cb(self, msg: Int64) -> None:
         self._buffer_size = msg.data
 
+    def _in_contact_cb(self, msg: Bool) -> None:
+        self._in_contact = msg.data
+
     def _update_params(self, first_call: bool = False) -> None:
         """Updates values of dynamic parameters and updated dependent objects.
 
@@ -86,45 +103,42 @@ class TrajectoryPublisher(Node):
         if self._param_listener.is_old(self._params) or first_call:
             self._param_listener.refresh_dynamic_parameters()
             self._params = self._param_listener.get_params()
-            self._update_weighted_trajectory_point("initialize_weights")
+            self._update_weighted_trajectory_point(self._weights_name)
 
-    def _update_weighted_trajectory_point(self, weights_name: str) -> None:
-        self.get_logger().error(f"Setting weights to '{weights_name}'.")
+    def _update_weighted_trajectory_point(self, stame_name: str) -> None:
+        self.get_logger().error(f"Setting weights to '{stame_name}'.")
+        stage = self._params.get_entry(stame_name)
 
         frame_of_interest = self._params.frame_of_interest
-        configuration = self._params.initial_targets
         traj_point = TrajectoryPoint(
             time_ns=time.time_ns(),
-            robot_configuration=np.asarray(configuration.robot_configuration),
-            robot_velocity=np.asarray(configuration.robot_velocity),
-            robot_acceleration=np.zeros(len(configuration.robot_velocity)),
-            robot_effort=np.zeros(len(configuration.robot_velocity)),
+            robot_configuration=np.asarray(stage.robot_configuration),
+            robot_velocity=np.asarray(stage.robot_velocity),
+            robot_acceleration=np.zeros(len(stage.robot_velocity)),
+            robot_effort=np.zeros(len(stage.robot_velocity)),
             forces={
-                frame_of_interest: pin.Force(
-                    np.array(configuration.desired_force), np.zeros(3)
-                )
+                frame_of_interest: pin.Force(np.array(stage.desired_force), np.zeros(3))
             },
             end_effector_poses={
                 frame_of_interest: np.concatenate(
                     (
-                        np.asarray(configuration.frame_translation),
-                        np.asarray(configuration.frame_rotation),
+                        np.asarray(stage.frame_translation),
+                        np.asarray(stage.frame_rotation),
                     ),
                 )
             },
             end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
         )
 
-        weights = self._params.get_entry(weights_name)
         traj_weights = TrajectoryPointWeights(
-            w_robot_configuration=weights.robot_configuration,
-            w_robot_velocity=weights.robot_velocity,
-            w_robot_acceleration=[0.0] * len(weights.robot_configuration),
-            w_robot_effort=weights.robot_effort,
+            w_robot_configuration=stage.w_robot_configuration,
+            w_robot_velocity=stage.w_robot_velocity,
+            w_robot_acceleration=[0.0] * len(stage.w_robot_configuration),
+            w_robot_effort=stage.w_robot_effort,
             w_forces={
                 frame_of_interest: np.concatenate(
                     (
-                        np.asarray(weights.desired_force),
+                        np.asarray(stage.w_desired_force),
                         np.zeros(3),
                     )
                 )
@@ -132,16 +146,16 @@ class TrajectoryPublisher(Node):
             w_end_effector_poses={
                 frame_of_interest: np.concatenate(
                     (
-                        np.asarray(weights.frame_translation),
-                        np.asarray(weights.frame_rotation),
+                        np.asarray(stage.w_frame_translation),
+                        np.asarray(stage.w_frame_rotation),
                     )
                 )
             },
             w_end_effector_velocities={
                 frame_of_interest: np.concatenate(
                     (
-                        np.asarray(weights.frame_linear_velocity),
-                        np.asarray(weights.frame_angular_velocity),
+                        np.asarray(stage.w_frame_linear_velocity),
+                        np.asarray(stage.w_frame_angular_velocity),
                     )
                 )
             },
@@ -178,7 +192,8 @@ class TrajectoryPublisher(Node):
         dcircle = np.array([dx, dy, 0.0])
 
         point.point.end_effector_poses[self._params.frame_of_interest][:3] = (
-            np.array(self._params.initial_targets.frame_translation) + circle
+            np.array(self._params.get_entry(self._weights_name).frame_translation)
+            + circle
         )
 
         point.point.end_effector_velocities[
@@ -228,7 +243,12 @@ class TrajectoryPublisher(Node):
                     throttle_duration_sec=5.0,
                 )
                 return
-
+            if self._in_contact is None:
+                self.get_logger().info(
+                    f"Buffer size information to be published...",
+                    throttle_duration_sec=5.0,
+                )
+                return
             if not self._check_can_tarnsform():
                 self.get_logger().info(
                     f"Waiting for transformation between '{self._params.robot_base_frame}' "
@@ -262,7 +282,8 @@ class TrajectoryPublisher(Node):
                         "Initial position reached. Following trajectory."
                     )
                     self._motion_phase = MotionPhases.perform_motion
-                    self._update_weighted_trajectory_point("seek_contact_weights")
+                    self._weights_name = "seek_contact"
+                    self._update_weighted_trajectory_point(self._weights_name)
                     break
 
                 if lin_vel > max_lin_vel:
@@ -286,6 +307,14 @@ class TrajectoryPublisher(Node):
             self.get_logger().info(
                 "Initial configuration received. Generating motion...", once=True
             )
+
+            if self._in_contact != self._last_in_contact_state:
+                self._last_in_contact_state = self._in_contact
+                self._weights_name = (
+                    "in_contact" if self._in_contact else "seek_contact"
+                )
+                self._update_weighted_trajectory_point(self._weights_name)
+
             end_seq = self._sequence_cnt + (
                 self._params.n_buffer_points - self._buffer_size
             )

@@ -72,7 +72,7 @@ agimus_pytroller:
     type: agimus_pytroller/AgimusPytroller
     python_module: panda_deburring.deburring_controller
     python_downsample_factor: 2
-    error_on_no_data: false
+    error_on_no_data: true
     interpolate_trajectory: true
     state_interfaces:
       - fer_joint1/position
@@ -141,11 +141,11 @@ agimus_pytroller:
         self_collision: false
         armature: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
       dt_factor_n_seq:
-        factors: [1, 2]
-        n_steps: [1, 1]
+        factors: [1, 2, 3]
+        n_steps: [1, 1, 1]
       ocp_params_force_feedback:
         dt: 0.002
-        horizon_size: 2
+        horizon_size: 3
         solver_iters: 1
         callbacks: false
         qp_iters: 25
