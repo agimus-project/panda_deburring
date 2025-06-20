@@ -35,9 +35,9 @@ trajectory_publisher_node:
       w_robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       w_frame_rotation: [5.0, 5.0, 0.0]
-      w_frame_translation: [30.0, 30.0, 0.0]
+      w_frame_translation: [30.0, 30.0, 1.0]
       w_frame_angular_velocity: [0.0, 0.0, 0.0]
-      w_frame_linear_velocity: [2.0, 2.0, 2.0]
+      w_frame_linear_velocity: [2.0, 2.0, 5.0]
       w_desired_force: [0.0, 0.0, 0.0]
     in_contact:
       robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
