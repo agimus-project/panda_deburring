@@ -102,7 +102,7 @@ class TrajectoryPublisher(Node):
             self._update_weighted_trajectory_point(self._weights_name)
 
     def _update_weighted_trajectory_point(self, stame_name: str) -> None:
-        self.get_logger().error(f"Setting weights to '{stame_name}'.")
+        self.get_logger().info(f"Setting weights to '{stame_name}'.")
         stage = self._params.get_entry(stame_name)
 
         frame_of_interest = self._params.frame_of_interest
