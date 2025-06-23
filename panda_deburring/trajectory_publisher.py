@@ -66,9 +66,7 @@ class TrajectoryPublisher(Node):
                 robot_acceleration=np.zeros(len(configuration.robot_velocity)),
                 robot_effort=np.zeros(len(configuration.robot_velocity)),
                 forces={
-                    frame_of_interest: pin.Force(
-                        np.concatenate((configuration.desired_force, np.zeros(3)))
-                    )
+                    frame_of_interest: pin.Force(np.array(configuration.desired_force))
                 },
                 end_effector_poses={
                     frame_of_interest: np.concatenate(
@@ -78,6 +76,7 @@ class TrajectoryPublisher(Node):
                         ),
                     )
                 },
+                end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
             )
 
             weights = self._params.weights
@@ -99,6 +98,14 @@ class TrajectoryPublisher(Node):
                         (
                             np.asarray(weights.frame_translation),
                             np.asarray(weights.frame_rotation),
+                        )
+                    )
+                },
+                w_end_effector_velocities={
+                    frame_of_interest: np.concatenate(
+                        (
+                            np.asarray(weights.frame_linear_velocity),
+                            np.asarray(weights.frame_angular_velocity),
                         )
                     )
                 },
@@ -124,13 +131,23 @@ class TrajectoryPublisher(Node):
         frequency = self._params.sanding_generator.circle.frequency
 
         t = seq / self._params.update_frequency
-        x = np.cos(t * frequency * 2.0 * np.pi) * r
-        y = np.sin(t * frequency * 2.0 * np.pi) * r
+
+        omega = frequency * 2.0 * np.pi
+        x = np.cos(t * omega) * r
+        y = np.sin(t * omega) * r
         circle = np.array([x, y, 0.0])
+
+        dx = -r * omega * np.sin(t * omega)
+        dy = r * omega * np.cos(t * omega)
+        dcircle = np.array([dx, dy, 0.0])
 
         point.point.end_effector_poses[self._params.frame_of_interest][:3] = (
             np.array(self._params.initial_targets.frame_translation) + circle
         )
+
+        point.point.end_effector_velocities[
+            self._params.frame_of_interest
+        ].linear = dcircle
 
         return weighted_traj_point_to_mpc_msg(point)
 

@@ -18,11 +18,8 @@ from agimus_controller.trajectory import (
 from agimus_controller.warm_start_reference import WarmStartReference
 from agimus_controller_ros.ros_utils import mpc_debug_data_to_msg
 from agimus_msgs.msg import MpcDebug, MpcInputArray
-from agimus_pytroller_py.agimus_pytroller_base import (
-    ControllerImplBase as AgimusControllerImplBase,
-)
+from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
-from geometry_msgs.msg import PoseStamped
 
 from panda_deburring.ocp_croco_force_feedback import (
     OCPCrocoForceFeedback,
@@ -33,7 +30,7 @@ from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
 )
 
 
-class ControllerImpl(AgimusControllerImplBase):
+class ControllerImpl(ControllerImplBase):
     def __init__(self, robot_description: str) -> None:
         self._topic_map = {}
         package_share_directory = Path(get_package_share_directory("panda_deburring"))
@@ -101,6 +98,10 @@ class ControllerImpl(AgimusControllerImplBase):
                 ],
                 dtype=np.float64,
             )
+            motion_twist = pin.Motion(
+                linear=np.array([getattr(mpc_input.twist.linear, t) for t in "xyz"]),
+                angular=np.array([getattr(mpc_input.twist.angular, t) for t in "xyz"]),
+            )
             force, torque = (
                 np.array([getattr(msg, f) for f in "xyz"], dtype=np.float64)
                 for msg in (mpc_input.force.force, mpc_input.force.torque)
@@ -116,6 +117,7 @@ class ControllerImpl(AgimusControllerImplBase):
                 end_effector_poses={
                     mpc_input.ee_frame_name: pin.XYZQUATToSE3(xyz_quat_pose)
                 },
+                end_effector_velocities={mpc_input.ee_frame_name: motion_twist},
             )
 
             traj_weights = TrajectoryPointWeights(
@@ -123,8 +125,21 @@ class ControllerImpl(AgimusControllerImplBase):
                 w_robot_velocity=np.array(mpc_input.w_qdot, dtype=np.float64),
                 w_robot_acceleration=np.array(mpc_input.w_qddot, dtype=np.float64),
                 w_robot_effort=np.array(mpc_input.w_robot_effort, dtype=np.float64),
-                w_forces={mpc_input.ee_frame_name: mpc_input.w_force},
-                w_end_effector_poses={mpc_input.ee_frame_name: mpc_input.w_pose},
+                w_forces={
+                    mpc_input.ee_frame_name: np.array(
+                        mpc_input.w_force, dtype=np.float64
+                    )
+                },
+                w_end_effector_poses={
+                    mpc_input.ee_frame_name: np.array(
+                        mpc_input.w_pose, dtype=np.float64
+                    )
+                },
+                w_end_effector_velocities={
+                    mpc_input.ee_frame_name: np.array(
+                        mpc_input.w_twist, dtype=np.float64
+                    )
+                },
             )
             self.mpc.append_trajectory_point(
                 WeightedTrajectoryPoint(point=traj_point, weights=traj_weights)
