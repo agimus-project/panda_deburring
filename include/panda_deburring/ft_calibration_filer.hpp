@@ -81,6 +81,6 @@ class FTCalibrationFilter : public controller_interface::ControllerInterface {
       sensor_state_publisher_;
   std::unique_ptr<StatePublisher> realtime_publisher_;
 };
-}  // namespace ft_calibration_filter
+}  // namespace panda_deburring
 
 #endif  // PANDA_DEBURRING__FT_CALIBRAION_FILTER_
