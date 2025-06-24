@@ -4,7 +4,7 @@
 #include <Eigen/Dense>
 #include <array>
 
-namespace ft_calibration_filter {
+namespace panda_deburring {
 class ButterworthFilter {
  public:
   ButterworthFilter(std::array<double, 2> &a, std::array<double, 3> &b) {
