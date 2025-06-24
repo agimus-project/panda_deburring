@@ -1,4 +1,5 @@
 import copy
+import math
 import time
 from enum import Enum
 
@@ -15,6 +16,7 @@ from agimus_msgs.msg import MpcInput, MpcInputArray
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Bool, Int64
+from std_srvs.srv import Trigger
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
@@ -57,6 +59,14 @@ class TrajectoryPublisher(Node):
             self._in_contact_cb,
             10,
         )
+
+        self._calibrate_srv = self.create_client(
+            Trigger, "/ft_calibration_filter/calibrate"
+        )
+        while not self._calibrate_srv.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info("service not available, waiting again...")
+
+        self._calibration_future = None
 
         # Transform buffers
         self._buffer = Buffer()
@@ -254,48 +264,75 @@ class TrajectoryPublisher(Node):
                 return
             self._motion_phase = MotionPhases.initialize
             self._start_point = self._generator_cb(0)
-            self._current = self._get_current_pose()
-            self._sequence_cnt += 1
-            return
-
-        elif self._motion_phase == MotionPhases.initialize:
+            self._start = self._get_current_pose()
             max_lin_vel = self._params.initialization.max_linear_velocity
             max_ang_vel = self._params.initialization.max_angular_velocity
-            pose_tolerance = self._params.initialization.pose_tolerance
-            rot_tolerance = self._params.initialization.rot_tolerance
-
-            end = pin.XYZQUATToSE3(
+            self._end_point = pin.XYZQUATToSE3(
                 self._start_point.point.end_effector_poses[
                     self._params.frame_of_interest
                 ]
             )
+            diff = self._start.inverse() * self._end_point
+            self._rot_vel = pin.log3(diff.rotation)
+
+            max_ang = np.max(pin.rpy.matrixToRpy(diff.rotation))
+            dist = np.linalg.norm(diff.translation)
+
+            ang_time = max_ang / max_ang_vel
+            lin_time = dist / max_lin_vel
+
+            # Time for the interpolation is slightly larger than needed
+            # to account for accelerations and decelerations, plus
+            # to presume safety a margin
+            interp_time = max(ang_time, lin_time) * 1.25
+            self._interp_steps = math.ceil(interp_time / self._params.ocp_dt)
+
+            self._sequence_cnt += 1
+            return
+
+        elif self._motion_phase == MotionPhases.initialize:
+            current = pin.SE3()
+
             inputs = []
-            for _ in range(self._params.n_buffer_points - self._buffer_size):
-                vel = pin.log6(self._current.inverse() * end)
-                lin_vel = np.linalg.norm(vel.linear)
-                if lin_vel < pose_tolerance and np.all(vel.angular < rot_tolerance):
-                    self.get_logger().info(
-                        "Initial position reached. Following trajectory."
+
+            if self._calibration_future is not None and self._calibration_future.done():
+                if not self._calibration_future.result().success:
+                    self._calibration_future = self._calibrate_srv.call_async(
+                        Trigger.Request()
                     )
-                    self._motion_phase = MotionPhases.perform_motion
-                    self._weights_name = "seek_contact"
-                    self._update_weighted_trajectory_point(self._weights_name)
-                    break
+                    self.get_logger().error("Failed to reset sensor bias!")
 
-                if lin_vel > max_lin_vel:
-                    vel.linear = vel.linear / lin_vel * max_lin_vel
+                self._motion_phase = MotionPhases.perform_motion
+                self._weights_name = "seek_contact"
+                self._update_weighted_trajectory_point(self._weights_name)
+                return
 
-                if np.any(vel.angular > max_ang_vel):
-                    vel.angular = vel.linear / np.max(vel.angular) * max_ang_vel
-                self._current = self._current * pin.exp6(vel * self._params.ocp_dt)
+            for _ in range(self._params.n_buffer_points - self._buffer_size):
+                if self._sequence_cnt >= self._interp_steps:
+                    if self._calibration_future is None:
+                        self.get_logger().info(
+                            "Initial position reached. Calibrating sensor."
+                        )
+                        self._calibration_future = self._calibrate_srv.call_async(
+                            Trigger.Request()
+                        )
+                else:
+                    self._sequence_cnt += 1
+
+                t = self._sequence_cnt / self._interp_steps
+
+                current.rotation = self._start.rotation @ pin.exp3(self._rot_vel * t)
+                current.translation = (1.0 - t) * self._start.translation + (
+                    t
+                ) * self._end_point.translation
                 point = copy.deepcopy(self._start_point)
                 point.point.end_effector_poses[self._params.frame_of_interest] = (
-                    pin.SE3ToXYZQUAT(self._current)
+                    pin.SE3ToXYZQUAT(current)
                 )
                 # print(pin.SE3ToXYZQUAT(self._current), flush=True)
-                point.point.end_effector_velocities[self._params.frame_of_interest] = (
-                    vel
-                )
+                # point.point.end_effector_velocities[self._params.frame_of_interest] = (
+                #     vel
+                # )
                 inputs.append(weighted_traj_point_to_mpc_msg(point))
             mpc_input_array = MpcInputArray(inputs=inputs)
 

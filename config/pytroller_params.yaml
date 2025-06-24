@@ -32,7 +32,7 @@ ft_calibration_filter:
       - agimus_pytroller/ati_mini45/torque.y
       - agimus_pytroller/ati_mini45/torque.z
     measurement_frame_id: ati_mini45_measurement_reference
-    bias_measurement_samples: 50
+    bias_measurement_samples: 1000
     gravity_vector: [0.0, 0.0, -9.81]
     invert_forces: true
     contact_detection:
