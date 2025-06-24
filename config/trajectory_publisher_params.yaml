@@ -2,23 +2,59 @@ trajectory_publisher_node:
   ros__parameters:
     trajectory_generator_name: sanding_generator
     update_frequency: 100.0
-    n_buffer_points: 5
+    ocp_dt: 0.002
+    n_buffer_points: 50
     frame_of_interest: ati_mini45_measurement_reference
-    initial_targets:
+    robot_base_frame: fer_link0
+    initialization:
+      max_linear_velocity: 0.1
+      max_angular_velocity: 1.0
+      pose_tolerance: 0.005
+      rot_tolerance: 0.01
+    initialize:
       robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      frame_translation: [0.5, 0.0, 0.3]
-      frame_rotation: [0.923, -0.382, 0.0, 0.0]
-      desired_force: [0.0, 0.0, -3.0]
-    weights:
-      robot_configuration: [0.8, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-      robot_velocity: [0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05]
-      robot_effort: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      frame_rotation: [0.0, 0.0, 0.0]
-      frame_translation: [40.0, 40.0, 0.0]
-      desired_force: [0.0, 0.0, 100.0]
+      frame_translation: [0.5, 0.0, 0.25]
+      frame_rotation: [0.0, 0.0, 1.0, 0.0]
+      desired_force: [0.0, 0.0, 0.0]
+      w_robot_configuration: [1.0, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+      w_robot_velocity: [0.1, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_frame_rotation: [120.0, 120.0, 120.0]
+      w_frame_translation: [40.0, 40.0, 40.0]
+      w_frame_angular_velocity: [10.0, 10.0, 10.0]
+      w_frame_linear_velocity: [1.0, 1.0, 1.0]
+      w_desired_force: [0.0, 0.0, 0.0]
+    seek_contact:
+      robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
+      robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      frame_translation: [0.5, 0.0, 0.0]
+      frame_rotation: [0.0, 0.0, 1.0, 0.0]
+      desired_force: [0.0, 0.0, 2.0]
+      w_robot_configuration: [0.01, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      w_robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_frame_rotation: [5.0, 5.0, 0.0]
+      w_frame_translation: [30.0, 30.0, 1.0]
+      w_frame_angular_velocity: [0.0, 0.0, 0.0]
+      w_frame_linear_velocity: [2.0, 2.0, 5.0]
+      w_desired_force: [0.0, 0.0, 0.0]
+    in_contact:
+      robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
+      robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      frame_translation: [0.5, 0.0, 0.0]
+      frame_rotation: [0.0, 0.0, 1.0, 0.0]
+      desired_force: [0.0, 0.0, 5.0]
+      w_robot_configuration: [0.2, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      w_robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+      w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_frame_rotation: [5.0, 5.0, 0.0]
+      w_frame_translation: [30.0, 30.0, 0.0]
+      w_frame_angular_velocity: [0.0, 0.0, 0.0]
+      w_frame_linear_velocity: [2.0, 2.0, 0.0]
+      w_desired_force: [0.0, 0.0, 0.000000000000005]
     sanding_generator:
       circle:
-        radius: 0.04
+        radius: 0.05
         frequency: 0.1
       start_time: 5.0
