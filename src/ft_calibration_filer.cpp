@@ -86,6 +86,10 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
   realtime_contact_publisher_->msg_.data = false;
   realtime_contact_publisher_->unlock();
 
+  calibrate_service_ = get_node()->create_service<std_srvs::srv::Trigger>(
+      "~/calibrate", std::bind(&FTCalibrationFilter::calibrate_sensor_cb, this,
+                               std::placeholders::_1, std::placeholders::_2));
+
   RCLCPP_INFO(this->get_node()->get_logger(), "configure successful");
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -259,6 +263,17 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_deactivate(
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
+void FTCalibrationFilter::calibrate_sensor_cb(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> response) {
+  RCLCPP_INFO(this->get_node()->get_logger(), "Calibrating sensor bias.");
+  bias_computed_ = false;
+
+  while (!bias_computed_) {
+  }
+  response->success = true;
+}
+
 controller_interface::return_type FTCalibrationFilter::update(
     const rclcpp::Time &time, const rclcpp::Duration & /*period*/) {
   if (param_listener_->is_old(params_)) {
@@ -299,16 +314,17 @@ controller_interface::return_type FTCalibrationFilter::update(
       calibration_trans_ * (m * calibration_.rotation().transpose() *
                             T_frame.rotation().transpose() * g_);
 
-  // Gather measurements to later remove bias
-  if (bias_buffer_cnt_ < bias_measurements_.cols()) {
-    bias_measurements_.col(bias_buffer_cnt_) = force_.toVector() - f_gravity;
-    bias_buffer_cnt_++;
-    return controller_interface::return_type::OK;
-  }
   // If all data required was acquired, compute average bias
   if (!bias_computed_) {
+    // Gather measurements to later remove bias
+    if (bias_buffer_cnt_ < bias_measurements_.cols()) {
+      bias_measurements_.col(bias_buffer_cnt_) = force_.toVector() - f_gravity;
+      bias_buffer_cnt_++;
+      return controller_interface::return_type::OK;
+    }
     avg_bias_.toVector() = bias_measurements_.rowwise().mean();
     bias_computed_ = true;
+    bias_buffer_cnt_ = 0;
     RCLCPP_INFO(this->get_node()->get_logger(),
                 "Bias computation finished. Bias Values are:\n"
                 "\tforce.x:  %3.2fN\n"
