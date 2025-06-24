@@ -160,7 +160,8 @@ class ControllerImpl(ControllerImplBase):
         # Extract state values
         q = state[:nq]
         dq = state[nq : nq + nv]
-        force = state[-6:]
+        force = state[-7:-1]
+        in_contact = state[-1] > 0.5
 
         # Compute gravity torque
         pin.framesForwardKinematics(self._robot_models.robot_model, self._robot_data, q)
@@ -188,7 +189,7 @@ class ControllerImpl(ControllerImplBase):
 
             T = self._ocp_params.horizon_size
             dummy_warmstart = OCPResults(
-                states=[state[:-3]] * (T + 1), feed_forward_terms=[tau_g] * T
+                states=[state[:-4]] * (T + 1), feed_forward_terms=[tau_g] * T
             )
             self.mpc._warm_start.update_previous_solution(dummy_warmstart)
             self._first_call = False
