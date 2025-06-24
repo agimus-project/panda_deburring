@@ -1,4 +1,4 @@
-#include "panda_deburring/ft_calibration_filer.hpp"
+#include "panda_deburring/ft_calibration_filter.hpp"
 
 #include <Eigen/Dense>
 #include <pinocchio/algorithm/model.hpp>

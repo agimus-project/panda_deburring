@@ -26,14 +26,14 @@ generate_parameter_module(
 ament_python_install_package(${PROJECT_NAME} SCRIPTS_DESTINATION
                              lib/${PROJECT_NAME})
 
-generate_parameter_library(ft_calibration_filer_parameters
-                           src/ft_calibration_filer_parameters.yaml)
+generate_parameter_library(ft_calibration_filter_parameters
+                           src/ft_calibration_filter_parameters.yaml)
 set(${PROJECT_NAME}_headers
     include/${PROJECT_NAME}/visibility.hpp
     include/${PROJECT_NAME}/butterworth_filter.hpp
-    include/${PROJECT_NAME}/ft_calibration_filer.hpp)
+    include/${PROJECT_NAME}/ft_calibration_filter.hpp)
 
-set(${PROJECT_NAME}_sources src/ft_calibration_filer.cpp)
+set(${PROJECT_NAME}_sources src/ft_calibration_filter.cpp)
 
 ament_auto_add_library(${PROJECT_NAME} ${${PROJECT_NAME}_sources}
                        ${${PROJECT_NAME}_headers})
@@ -47,7 +47,7 @@ target_compile_definitions(
 
 target_link_libraries(${PROJECT_NAME} pinocchio::pinocchio)
 ament_target_dependencies(${PROJECT_NAME} Eigen3)
-target_link_libraries(${PROJECT_NAME} ft_calibration_filer_parameters)
+target_link_libraries(${PROJECT_NAME} ft_calibration_filter_parameters)
 
 #
 # Export plugins
