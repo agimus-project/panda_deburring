@@ -315,8 +315,7 @@ controller_interface::return_type FTCalibrationFilter::update(
     return controller_interface::return_type::OK;
   }
 
-  const auto f = force_.toVector() - avg_bias_.toVector();
-  Vector6d f_out = f - f_gravity;
+  pinocchio::Force f_out(force_.toVector() - avg_bias_.toVector() - f_gravity);
 
   for (std::size_t i = 0; i < f_out.toVector().size(); i++) {
     f_out.toVector()[i] = filters_[i].update(f_out.toVector()[i]);

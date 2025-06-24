@@ -3,7 +3,7 @@
 
 #include <pinocchio/spatial/force.hpp>
 
-namespace ft_calibration_filter {
+namespace panda_deburring {
 class ContactDetector {
  public:
   ContactDetector() {}
@@ -56,6 +56,6 @@ class ContactDetector {
   double lower_threshold_ = 0.0;
   double upper_threshold_ = 0.0;
 };
-}  // namespace ft_calibration_filter
+}  // namespace panda_deburring
 
 #endif  // PANDA_DEBURRING__CONTACT_DETECTOR_
