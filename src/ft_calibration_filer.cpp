@@ -276,7 +276,7 @@ controller_interface::return_type FTCalibrationFilter::update(
   return controller_interface::return_type::OK;
 }
 
-}  // namespace ft_calibration_filter
+}  // namespace panda_deburring
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(ft_calibration_filter::FTCalibrationFilter,
