@@ -9,15 +9,19 @@ class ContactDetector {
   ContactDetector() {}
 
   void update(const pinocchio::Force &force) {
+    // Use lower threshold in case robot is in contact.
+    // Otherwise require higher force to enter this state.
     const double thresh =
-        filterted_state_ ? lower_threshold_ : upper_threshold_;
-    last_measured_state_ = force.linear().norm() > thresh;
+        last_in_contact_ ? lower_threshold_ : upper_threshold_;
+    in_contact_ = (force.linear().cwiseProduct(mask_)).norm() > thresh;
   }
 
   bool in_contact() {
-    if (last_measured_state_ != filterted_state_ &&
+    // If state changes and minimum number
+    // of samples since last change elapsed
+    if (last_in_contact_ != in_contact_ &&
         samples_since_switch_ > hysteresis_samples_) {
-      filterted_state_ = last_measured_state_;
+      last_in_contact_ = in_contact_;
       samples_since_switch_ = 0;
     } else {
       samples_since_switch_++;
@@ -27,7 +31,8 @@ class ContactDetector {
       }
     }
 
-    return filterted_state_;
+    // Return latched version
+    return last_in_contact_;
   }
 
   void set_hysteresis_samples(const unsigned int hysteresis_samples) {
@@ -48,13 +53,25 @@ class ContactDetector {
 
   double get_upper_threshold() const { return upper_threshold_; }
 
+  void set_axis_mask(const std::string &axis_mask) {
+    const std::string axies = "xyz";
+    for (std::size_t i = 0; i < 3; i++) {
+      mask_[i] = axis_mask.find(axies[i]) != std::string::npos ? 1.0 : 0.0;
+    }
+  }
+
  private:
-  bool last_measured_state_ = false;
-  bool filterted_state_ = false;
+  bool last_in_contact_ = false;
+  bool in_contact_ = false;
   unsigned int samples_since_switch_ = 0;
-  unsigned int hysteresis_samples_ = 0;
-  double lower_threshold_ = 0.0;
-  double upper_threshold_ = 0.0;
+
+  unsigned int hysteresis_samples_ =
+      0;  // Minimum number of samples between contact state switch.
+  double lower_threshold_ =
+      0.0;  // Force threshold used to switch in contact -> not in contact.
+  double upper_threshold_ =
+      0.0;  // Force threshold used to switch not in contact -> in contact.
+  Eigen::Vector3d mask_;
 };
 }  // namespace panda_deburring
 

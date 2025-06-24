@@ -161,7 +161,8 @@ class ControllerImpl(ControllerImplBase):
         q = state[:nq]
         dq = state[nq : nq + nv]
         force = state[-7:-1]
-        in_contact = state[-1] > 0.5
+        # Currently unused, kept for compatibility
+        _ = state[-1] > 0.5
 
         # Compute gravity torque
         pin.framesForwardKinematics(self._robot_models.robot_model, self._robot_data, q)
