@@ -11,7 +11,7 @@
 
 #include "controller_interface/helpers.hpp"
 
-namespace ft_calibration_filter {
+namespace panda_deburring {
 
 controller_interface::CallbackReturn FTCalibrationFilter::on_init() {
   try {
