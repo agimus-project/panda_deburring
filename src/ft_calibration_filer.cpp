@@ -15,7 +15,8 @@ namespace panda_deburring {
 
 controller_interface::CallbackReturn FTCalibrationFilter::on_init() {
   try {
-    param_listener_ = std::make_shared<ParamListener>(get_node());
+    param_listener_ =
+        std::make_shared<ft_calibration_filter::ParamListener>(get_node());
     params_ = param_listener_->get_params();
   } catch (const std::exception &e) {
     fprintf(stderr, "Exception thrown during init stage with message: %s \n",

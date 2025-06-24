@@ -46,8 +46,8 @@ class FTCalibrationFilter : public controller_interface::ControllerInterface {
       const rclcpp::Time &time, const rclcpp::Duration &period) override;
 
  protected:
-  std::shared_ptr<ParamListener> param_listener_;
-  Params params_;
+  std::shared_ptr<ft_calibration_filter::ParamListener> param_listener_;
+  ft_calibration_filter::Params params_;
 
   pinocchio::Model robot_model_;
   pinocchio::Data robot_data_;
