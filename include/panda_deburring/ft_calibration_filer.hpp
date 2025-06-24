@@ -22,7 +22,7 @@ typedef Eigen::Matrix<double, 6, 1> Vector6d;
 typedef Eigen::Matrix<double, 6, 3> Matrix63d;
 typedef Eigen::Matrix<double, 6, -1> Matrix6Xd;
 
-namespace ft_calibration_filter {
+namespace panda_deburring {
 class FTCalibrationFilter : public controller_interface::ControllerInterface {
  public:
   controller_interface::CallbackReturn on_init() override;
