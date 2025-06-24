@@ -279,5 +279,5 @@ controller_interface::return_type FTCalibrationFilter::update(
 }  // namespace panda_deburring
 
 #include "pluginlib/class_list_macros.hpp"
-PLUGINLIB_EXPORT_CLASS(ft_calibration_filter::FTCalibrationFilter,
+PLUGINLIB_EXPORT_CLASS(panda_deburring::FTCalibrationFilter,
                        controller_interface::ControllerInterface)
