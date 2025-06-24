@@ -33,6 +33,6 @@ class ButterworthFilter {
   Eigen::Vector2d filtered_;
   Eigen::Vector3d raw_;
 };
-}  // namespace ft_calibration_filter
+}  // namespace panda_deburring
 
 #endif  // PANDA_DEBURRING__BUTTERWORTH_FILTER_
