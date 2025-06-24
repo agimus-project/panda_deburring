@@ -68,7 +68,7 @@ agimus_pytroller:
     python_downsample_factor: 2
     error_on_no_data: true
     interpolate_trajectory: true
-    state_interfaces:
+    input_interfaces:
       - fer_joint1/position
       - fer_joint2/position
       - fer_joint3/position
