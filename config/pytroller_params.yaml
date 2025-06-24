@@ -1,6 +1,6 @@
 ft_calibration_filter:
   ros__parameters:
-    type: ft_calibration_filter/FTCalibrationFilter
+    type: panda_deburring/FTCalibrationFilter
     state_force_interfaces_names:
       - ati_mini45/force.x
       - ati_mini45/force.y
