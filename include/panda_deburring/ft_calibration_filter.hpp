@@ -83,7 +83,7 @@ class FTCalibrationFilter : public controller_interface::ControllerInterface {
       realtime_tools::RealtimePublisher<geometry_msgs::msg::WrenchStamped>;
   rclcpp::Publisher<geometry_msgs::msg::WrenchStamped>::SharedPtr
       sensor_state_publisher_;
-  std::unique_ptr<StatePublisher> realtime_state_publisher_;
+  std::unique_ptr<StatePublisher> realtime_wrench_publisher_;
 
   using ContactPublisher =
       realtime_tools::RealtimePublisher<std_msgs::msg::Bool>;

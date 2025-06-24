@@ -54,7 +54,7 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
     sensor_state_publisher_ =
         get_node()->create_publisher<geometry_msgs::msg::WrenchStamped>(
             "~/wrench", rclcpp::SystemDefaultsQoS());
-    realtime_state_publisher_ =
+    realtime_wrench_publisher_ =
         std::make_unique<StatePublisher>(sensor_state_publisher_);
   } catch (const std::exception &e) {
     fprintf(stderr,
@@ -64,10 +64,10 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  realtime_state_publisher_->lock();
-  realtime_state_publisher_->msg_.header.frame_id =
+  realtime_wrench_publisher_->lock();
+  realtime_wrench_publisher_->msg_.header.frame_id =
       params_.measurement_frame_id;
-  realtime_state_publisher_->unlock();
+  realtime_wrench_publisher_->unlock();
 
   try {
     // register ft sensor data publisher
@@ -322,15 +322,15 @@ controller_interface::return_type FTCalibrationFilter::update(
     ordered_command_interfaces_[i].get().set_value(f_out.toVector()[i]);
   }
 
-  if (realtime_state_publisher_ && realtime_state_publisher_->trylock()) {
-    realtime_state_publisher_->msg_.header.stamp = time;
-    realtime_state_publisher_->msg_.wrench.force.x = f_out.linear()[0];
-    realtime_state_publisher_->msg_.wrench.force.y = f_out.linear()[1];
-    realtime_state_publisher_->msg_.wrench.force.z = f_out.linear()[2];
-    realtime_state_publisher_->msg_.wrench.torque.x = f_out.angular()[0];
-    realtime_state_publisher_->msg_.wrench.torque.y = f_out.angular()[1];
-    realtime_state_publisher_->msg_.wrench.torque.z = f_out.angular()[2];
-    realtime_state_publisher_->unlockAndPublish();
+  if (realtime_wrench_publisher_ && realtime_wrench_publisher_->trylock()) {
+    realtime_wrench_publisher_->msg_.header.stamp = time;
+    realtime_wrench_publisher_->msg_.wrench.force.x = f_out.linear()[0];
+    realtime_wrench_publisher_->msg_.wrench.force.y = f_out.linear()[1];
+    realtime_wrench_publisher_->msg_.wrench.force.z = f_out.linear()[2];
+    realtime_wrench_publisher_->msg_.wrench.torque.x = f_out.angular()[0];
+    realtime_wrench_publisher_->msg_.wrench.torque.y = f_out.angular()[1];
+    realtime_wrench_publisher_->msg_.wrench.torque.z = f_out.angular()[2];
+    realtime_wrench_publisher_->unlockAndPublish();
   }
 
   contact_detector_.update(f_out);
