@@ -33,6 +33,11 @@ FTCalibrationFilter::command_interface_configuration() const {
       controller_interface::interface_configuration_type::INDIVIDUAL;
   command_interfaces_config.names = params_.filtered_forces_interfaces_names;
 
+  if (params_.contact_detection.augment_state) {
+    command_interfaces_config.names.push_back(
+        params_.contact_detection.command_interface_name);
+  }
+
   return command_interfaces_config;
 }
 
@@ -49,7 +54,7 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
     sensor_state_publisher_ =
         get_node()->create_publisher<geometry_msgs::msg::WrenchStamped>(
             "~/wrench", rclcpp::SystemDefaultsQoS());
-    realtime_publisher_ =
+    realtime_wrench_publisher_ =
         std::make_unique<StatePublisher>(sensor_state_publisher_);
   } catch (const std::exception &e) {
     fprintf(stderr,
@@ -59,9 +64,28 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
     return controller_interface::CallbackReturn::ERROR;
   }
 
-  realtime_publisher_->lock();
-  realtime_publisher_->msg_.header.frame_id = params_.measurement_frame_id;
-  realtime_publisher_->unlock();
+  realtime_wrench_publisher_->lock();
+  realtime_wrench_publisher_->msg_.header.frame_id =
+      params_.measurement_frame_id;
+  realtime_wrench_publisher_->unlock();
+
+  try {
+    // register ft sensor data publisher
+    contact_publisher_ = get_node()->create_publisher<std_msgs::msg::Bool>(
+        "~/contact", rclcpp::SystemDefaultsQoS());
+    realtime_contact_publisher_ =
+        std::make_unique<ContactPublisher>(contact_publisher_);
+  } catch (const std::exception &e) {
+    fprintf(stderr,
+            "Exception thrown during publisher creation at configure stage "
+            "with message : %s \n",
+            e.what());
+    return controller_interface::CallbackReturn::ERROR;
+  }
+
+  realtime_contact_publisher_->lock();
+  realtime_contact_publisher_->msg_.data = false;
+  realtime_contact_publisher_->unlock();
 
   RCLCPP_INFO(this->get_node()->get_logger(), "configure successful");
 
@@ -100,6 +124,24 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
                  params_.state_robot_position_interfaces_names.size(),
                  ordered_state_robot_position_interfaces_.size());
     return controller_interface::CallbackReturn::ERROR;
+  }
+
+  if (params_.contact_detection.augment_state) {
+    bool found = false;
+    const auto &name = params_.contact_detection.command_interface_name;
+    for (auto &interface : command_interfaces_) {
+      if (name == interface.get_name()) {
+        ordered_command_interfaces_.push_back(std::ref(interface));
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      RCLCPP_ERROR(
+          this->get_node()->get_logger(),
+          "New command interface for contact detection was not found!");
+      return controller_interface::CallbackReturn::ERROR;
+    }
   }
 
   std_msgs::msg::String robot_description_msg;
@@ -196,6 +238,13 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
     filters_.push_back(ButterworthFilter(a, b));
   }
 
+  contact_detector_.set_hysteresis_samples(
+      params_.contact_detection.hysteresis_samples);
+  contact_detector_.set_lower_threshold(
+      params_.contact_detection.lower_threshold);
+  contact_detector_.set_upper_threshold(
+      params_.contact_detection.upper_threshold);
+
   RCLCPP_INFO(this->get_node()->get_logger(), "activate successful");
 
   return controller_interface::CallbackReturn::SUCCESS;
@@ -212,6 +261,17 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_deactivate(
 
 controller_interface::return_type FTCalibrationFilter::update(
     const rclcpp::Time &time, const rclcpp::Duration & /*period*/) {
+  if (param_listener_->is_old(params_)) {
+    params_ = param_listener_->get_params();
+    contact_detector_.set_hysteresis_samples(
+        params_.contact_detection.hysteresis_samples);
+    contact_detector_.set_lower_threshold(
+        params_.contact_detection.lower_threshold);
+    contact_detector_.set_upper_threshold(
+        params_.contact_detection.upper_threshold);
+    RCLCPP_INFO(this->get_node()->get_logger(), "Parameters were updated");
+  }
+
   Vector6d force;
   for (std::size_t i = 0; i < 6; i++) {
     force[i] = ordered_state_force_interfaces_[i].get().get_value();
@@ -255,23 +315,36 @@ controller_interface::return_type FTCalibrationFilter::update(
     return controller_interface::return_type::OK;
   }
 
-  const auto f = force_.toVector() - avg_bias_.toVector();
-  Vector6d f_out = f - f_gravity;
+  pinocchio::Force f_out(force_.toVector() - avg_bias_.toVector() - f_gravity);
 
-  for (std::size_t i = 0; i < f_out.size(); i++) {
-    f_out[i] = filters_[i].update(f_out[i]);
-    ordered_command_interfaces_[i].get().set_value(f_out[i]);
+  for (std::size_t i = 0; i < f_out.toVector().size(); i++) {
+    f_out.toVector()[i] = filters_[i].update(f_out.toVector()[i]);
+    ordered_command_interfaces_[i].get().set_value(f_out.toVector()[i]);
   }
 
-  if (realtime_publisher_ && realtime_publisher_->trylock()) {
-    realtime_publisher_->msg_.header.stamp = time;
-    realtime_publisher_->msg_.wrench.force.x = f_out[0];
-    realtime_publisher_->msg_.wrench.force.y = f_out[1];
-    realtime_publisher_->msg_.wrench.force.z = f_out[2];
-    realtime_publisher_->msg_.wrench.torque.x = f_out[3];
-    realtime_publisher_->msg_.wrench.torque.y = f_out[4];
-    realtime_publisher_->msg_.wrench.torque.z = f_out[5];
-    realtime_publisher_->unlockAndPublish();
+  if (realtime_wrench_publisher_ && realtime_wrench_publisher_->trylock()) {
+    realtime_wrench_publisher_->msg_.header.stamp = time;
+    realtime_wrench_publisher_->msg_.wrench.force.x = f_out.linear()[0];
+    realtime_wrench_publisher_->msg_.wrench.force.y = f_out.linear()[1];
+    realtime_wrench_publisher_->msg_.wrench.force.z = f_out.linear()[2];
+    realtime_wrench_publisher_->msg_.wrench.torque.x = f_out.angular()[0];
+    realtime_wrench_publisher_->msg_.wrench.torque.y = f_out.angular()[1];
+    realtime_wrench_publisher_->msg_.wrench.torque.z = f_out.angular()[2];
+    realtime_wrench_publisher_->unlockAndPublish();
+  }
+
+  contact_detector_.update(f_out);
+  bool in_contact = contact_detector_.in_contact();
+
+  if (realtime_contact_publisher_ && realtime_contact_publisher_->trylock()) {
+    realtime_contact_publisher_->msg_.data = in_contact;
+    realtime_contact_publisher_->unlockAndPublish();
+  }
+
+  if (params_.contact_detection.augment_state) {
+    ordered_command_interfaces_[ordered_command_interfaces_.size() - 1]
+        .get()
+        .set_value(static_cast<double>(in_contact));
   }
 
   return controller_interface::return_type::OK;

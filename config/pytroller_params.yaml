@@ -35,6 +35,12 @@ ft_calibration_filter:
     bias_measurement_samples: 500
     gravity_vector: [0.0, 0.0, -9.81]
     invert_forces: true
+    contact_detection:
+      hysteresis_samples: 5
+      augment_state: true
+      command_interface_name: agimus_pytroller/in_contact
+      lower_threshold: 0.2
+      upper_threshold: 1.0
     calibration:
       measurement_frame:
         xyz: [0.0, 0.0, 0.0]
@@ -89,6 +95,7 @@ agimus_pytroller:
       - agimus_pytroller/ati_mini45/torque.x
       - agimus_pytroller/ati_mini45/torque.y
       - agimus_pytroller/ati_mini45/torque.z
+      - agimus_pytroller/in_contact
     command_interfaces:
       - fer_joint1/effort
       - fer_joint2/effort
@@ -104,6 +111,7 @@ agimus_pytroller:
       - ati_mini45/torque.x
       - ati_mini45/torque.y
       - ati_mini45/torque.z
+      - in_contact
     subscribed_topics: ["mpc_input"]
     mpc_input:
       topic_name: "mpc_input"
