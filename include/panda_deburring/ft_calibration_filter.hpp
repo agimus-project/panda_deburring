@@ -65,8 +65,6 @@ class FTCalibrationFilter : public controller_interface::ControllerInterface {
   pinocchio::SE3 calibration_;
   Matrix63d calibration_trans_;
 
-  bool last_in_contact_ = false;
-
   std::vector<ButterworthFilter> filters_;
 
   ContactDetector contact_detector_;

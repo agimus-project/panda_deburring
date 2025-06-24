@@ -72,7 +72,7 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_configure(
   try {
     // register ft sensor data publisher
     contact_publisher_ = get_node()->create_publisher<std_msgs::msg::Bool>(
-        "~/contact", rclcpp::QoS(1).transient_local());
+        "~/contact", rclcpp::SystemDefaultsQoS());
     realtime_contact_publisher_ =
         std::make_unique<ContactPublisher>(contact_publisher_);
   } catch (const std::exception &e) {
@@ -336,12 +336,10 @@ controller_interface::return_type FTCalibrationFilter::update(
   contact_detector_.update(f_out);
   bool in_contact = contact_detector_.in_contact();
 
-  if (last_in_contact_ != in_contact && realtime_contact_publisher_ &&
-      realtime_contact_publisher_->trylock()) {
+  if (realtime_contact_publisher_ && realtime_contact_publisher_->trylock()) {
     realtime_contact_publisher_->msg_.data = in_contact;
     realtime_contact_publisher_->unlockAndPublish();
   }
-  last_in_contact_ = in_contact;
 
   if (params_.contact_detection.augment_state) {
     ordered_command_interfaces_[ordered_command_interfaces_.size() - 1]
