@@ -119,11 +119,15 @@ agimus_pytroller:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["mpc_debug_data"]
+    published_topics: ["mpc_debug_data", "get_buffer_size"]
     mpc_debug_data:
       topic_name: "mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
       python_msg_getter_name: get_ocp_results
+    get_buffer_size:
+      topic_name: "buffer_size"
+      topic_type: std_msgs/msg/Int64
+      python_msg_getter_name: get_buffer_size
     pytroller_python_params:
       robot_model_params:
         moving_joint_names:
@@ -154,7 +158,6 @@ agimus_pytroller:
         x_reg_cost_weight: 1.0
         frame_translation_cost_weight: 1.0
         frame_rotation_cost_weight: 1.0
-        frame_velocity_weights: [3.125, 3.125, 3.125, 2., 2., 2.]
         frame_velocity_cost_weight: 1.0
         Kp: [150.0, 150.0, 150.0]
         Kv: [0.5, 0.5, 0.5]

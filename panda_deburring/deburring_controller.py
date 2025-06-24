@@ -20,6 +20,7 @@ from agimus_controller_ros.ros_utils import mpc_debug_data_to_msg
 from agimus_msgs.msg import MpcDebug, MpcInputArray
 from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
+from std_msgs.msg import Int64
 
 from panda_deburring.ocp_croco_force_feedback import (
     OCPCrocoForceFeedback,
@@ -148,6 +149,9 @@ class ControllerImpl(ControllerImplBase):
     def get_ocp_results(self) -> MpcDebug:
         self.mpc.mpc_debug_data.reference_id = 0
         return mpc_debug_data_to_msg(self.mpc.mpc_debug_data)
+
+    def get_buffer_size(self) -> Int64:
+        return Int64(data=len(self.mpc._buffer))
 
     def on_update(self, state: np.array) -> np.array:
         # state[-6:] = -state[-6:]
