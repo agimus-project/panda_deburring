@@ -9,7 +9,7 @@ trajectory_publisher_node:
     initialization:
       max_linear_velocity: 0.1
       max_angular_velocity: 1.0
-      pose_tolerance: 0.005
+      pose_tolerance: 0.05
       rot_tolerance: 0.01
     initialize:
       robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
@@ -20,8 +20,8 @@ trajectory_publisher_node:
       w_robot_configuration: [1.0, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
       w_robot_velocity: [0.1, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
       w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      w_frame_rotation: [120.0, 120.0, 120.0]
-      w_frame_translation: [40.0, 40.0, 40.0]
+      w_frame_rotation: [200.0, 200.0, 200.0]
+      w_frame_translation: [80.0, 80.0, 80.0]
       w_frame_angular_velocity: [10.0, 10.0, 10.0]
       w_frame_linear_velocity: [1.0, 1.0, 1.0]
       w_desired_force: [0.0, 0.0, 0.0]
@@ -52,7 +52,7 @@ trajectory_publisher_node:
       w_frame_translation: [30.0, 30.0, 0.0]
       w_frame_angular_velocity: [0.0, 0.0, 0.0]
       w_frame_linear_velocity: [2.0, 2.0, 0.0]
-      w_desired_force: [0.0, 0.0, 0.000000000000005]
+      w_desired_force: [0.0, 0.0, 0.0]
     sanding_generator:
       circle:
         radius: 0.05

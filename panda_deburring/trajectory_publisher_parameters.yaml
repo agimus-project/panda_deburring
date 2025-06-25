@@ -61,7 +61,6 @@ trajectory_publisher:
     type: string_array
     default_value: ["initialize", "seek_contact", "in_contact"]
     description: "List of names associated to different phases."
-    read_only: true
   __map_stages:
     robot_configuration:
       type: double_array

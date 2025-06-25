@@ -47,7 +47,6 @@ ft_calibration_filter:
       measurement_frame:
         xyz: [0.0, 0.0, 0.0]
         rpy: [0.088, 0.008, 0.088]
-        # rpy: [0.0, 0.0, 0.0]
       com:
         xyz: [0.0, 0.0, -0.021]
         mass: 1.063
@@ -73,8 +72,8 @@ agimus_pytroller:
   ros__parameters:
     type: agimus_pytroller/AgimusPytroller
     python_module: panda_deburring.deburring_controller
-    python_downsample_factor: 2
-    error_on_no_data: true
+    python_downsample_factor: 5
+    error_on_no_data: false
     interpolate_trajectory: true
     input_interfaces:
       - fer_joint1/position
@@ -116,16 +115,16 @@ agimus_pytroller:
       - in_contact
     subscribed_topics: ["mpc_input"]
     mpc_input:
-      topic_name: "mpc_input"
+      topic_name: "~/mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
     published_topics: ["mpc_debug_data", "get_buffer_size"]
     mpc_debug_data:
-      topic_name: "mpc_debug"
+      topic_name: "~/mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
       python_msg_getter_name: get_ocp_results
     get_buffer_size:
-      topic_name: "buffer_size"
+      topic_name: "~/buffer_size"
       topic_type: std_msgs/msg/Int64
       python_msg_getter_name: get_buffer_size
     pytroller_python_params:
@@ -146,7 +145,7 @@ agimus_pytroller:
         factors: [1]
         n_steps: [5]
       ocp_params_force_feedback:
-        dt: 0.002
+        dt: 0.005
         horizon_size: 5
         solver_iters: 2
         callbacks: false
