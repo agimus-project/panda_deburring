@@ -80,9 +80,10 @@ class TrajectoryPublisher(Node):
         self._in_contact = None
         self._last_in_contact_state = False
 
-        self._initial_configuration = pin.SE3()
         self._trajectory_offset = 0
-        self._start_point = None
+        self._first_trajectory_point = None
+        self._robot_start_pose = pin.SE3()
+        self._rot_vel = np.zeros(3)
         self._motion_phase = MotionPhases.wait_for_data
 
         self._generator_cb = {"sanding_generator": self._circle_generator}[
@@ -111,9 +112,14 @@ class TrajectoryPublisher(Node):
             self._params = self._param_listener.get_params()
             self._update_weighted_trajectory_point(self._weights_name)
 
-    def _update_weighted_trajectory_point(self, stame_name: str) -> None:
-        self.get_logger().info(f"Setting weights to '{stame_name}'.")
-        stage = self._params.get_entry(stame_name)
+    def _update_weighted_trajectory_point(self, state_name: str) -> None:
+        """Updated trajectory point parameters to use new set of weights.
+
+        Args:
+            state_name (str): Name of the state from which weights have to be loaded.
+        """
+        self.get_logger().info(f"Setting weights to '{state_name}'.")
+        stage = self._params.get_entry(state_name)
 
         frame_of_interest = self._params.frame_of_interest
         traj_point = TrajectoryPoint(
@@ -188,11 +194,13 @@ class TrajectoryPublisher(Node):
 
         t = seq * self._params.ocp_dt
 
+        # Pose increment
         omega = frequency * 2.0 * np.pi
         x = np.cos(t * omega) * r
         y = np.sin(t * omega) * r
         circle = np.array([x, y, 0.0])
 
+        # Velocity
         dx = -r * omega * np.sin(t * omega)
         dy = r * omega * np.cos(t * omega)
         dcircle = np.array([dx, dy, 0.0])
@@ -209,8 +217,15 @@ class TrajectoryPublisher(Node):
         return point
 
     def _check_can_tarnsform(self) -> bool:
+        """Checks if transformation between robot base and end effector can be obtained.
+
+        Returns:
+            bool: Indicates if transformation can be obtained.
+        """
         parent = self._params.robot_base_frame
         child = self._params.frame_of_interest
+        # For some reason standard check transform doesn't work in this node so
+        # a walkaround had to be used...
         try:
             self._buffer.lookup_transform(parent, child, rclpy.time.Time())
             return True
@@ -219,6 +234,11 @@ class TrajectoryPublisher(Node):
             return False
 
     def _get_current_pose(self) -> pin.SE3:
+        """Requests pose od the end effector from TF2 buffer and converts it to Pinocchio SE3 object.
+
+        Returns:
+            pin.SE3: End effector pose as SE3 object
+        """
         parent = self._params.robot_base_frame
         child = self._params.frame_of_interest
         transform = self._buffer.lookup_transform(
@@ -262,24 +282,26 @@ class TrajectoryPublisher(Node):
                     throttle_duration_sec=5.0,
                 )
                 return
-            self._motion_phase = MotionPhases.initialize
-            self._start_point = self._generator_cb(0)
-            self._start = self._get_current_pose()
-            max_lin_vel = self._params.initialization.max_linear_velocity
-            max_ang_vel = self._params.initialization.max_angular_velocity
-            self._end_point = pin.XYZQUATToSE3(
-                self._start_point.point.end_effector_poses[
+            # Obtain first point of the desired trajectory
+            self._first_trajectory_point = self._generator_cb(0)
+            # Get current pose of the robot, as a starting point of the interpolation
+            self._robot_start_pose = self._get_current_pose()
+
+            # Target pose of the interpolation is the first point of the trajectory
+            self._robot_end_pose = pin.XYZQUATToSE3(
+                self._first_trajectory_point.point.end_effector_poses[
                     self._params.frame_of_interest
                 ]
             )
-            diff = self._start.inverse() * self._end_point
+            # Separately interpolate in SO3 and R3 separately to obtain linear motion
+            diff = self._robot_start_pose.inverse() * self._robot_end_pose
             self._rot_vel = pin.log3(diff.rotation)
 
             max_ang = np.max(pin.rpy.matrixToRpy(diff.rotation))
             dist = np.linalg.norm(diff.translation)
 
-            ang_time = max_ang / max_ang_vel
-            lin_time = dist / max_lin_vel
+            ang_time = max_ang / self._params.initialization.max_angular_velocity
+            lin_time = dist / self._params.initialization.max_linear_velocity
 
             # Time for the interpolation is slightly larger than needed
             # to account for accelerations and decelerations, plus
@@ -288,18 +310,24 @@ class TrajectoryPublisher(Node):
             self._interp_steps = math.ceil(interp_time / self._params.ocp_dt)
 
             self._sequence_cnt += 1
+
+            self._motion_phase = MotionPhases.initialize
             return
 
         elif self._motion_phase == MotionPhases.initialize:
-            current = pin.SE3()
+            # TODO implement proper handling of sequence counter in this section
+            # Current implementation might not work the best with plotting of
+            # the cost gradient in the initialization phase. Tho it might not be
+            # that important as this section of the task does not have to be perfect.
 
-            inputs = []
-
+            # If calibration service was called and the answer already arrived
             if self._calibration_future is not None and self._calibration_future.done():
                 if not self._calibration_future.result().success:
                     self._calibration_future = self._calibrate_srv.call_async(
                         Trigger.Request()
                     )
+                    # Retry calling the service by
+                    self._calibration_future = None
                     self.get_logger().error("Failed to reset sensor bias!")
 
                 self._motion_phase = MotionPhases.perform_motion
@@ -307,32 +335,35 @@ class TrajectoryPublisher(Node):
                 self._update_weighted_trajectory_point(self._weights_name)
                 return
 
+            inputs = []
+            current = pin.SE3()
+            # If buffer is already empty
+            if self._sequence_cnt >= self._interp_steps:
+                if self._calibration_future is None:
+                    self.get_logger().info(
+                        "Initial position reached. Calibrating sensor."
+                    )
+                    self._calibration_future = self._calibrate_srv.call_async(
+                        Trigger.Request()
+                    )
             for _ in range(self._params.n_buffer_points - self._buffer_size):
-                if self._sequence_cnt >= self._interp_steps:
-                    if self._calibration_future is None:
-                        self.get_logger().info(
-                            "Initial position reached. Calibrating sensor."
-                        )
-                        self._calibration_future = self._calibrate_srv.call_async(
-                            Trigger.Request()
-                        )
-                else:
+                if self._sequence_cnt < self._interp_steps:
                     self._sequence_cnt += 1
 
                 t = self._sequence_cnt / self._interp_steps
 
-                current.rotation = self._start.rotation @ pin.exp3(self._rot_vel * t)
-                current.translation = (1.0 - t) * self._start.translation + (
-                    t
-                ) * self._end_point.translation
-                point = copy.deepcopy(self._start_point)
+                # Interpolate rotation
+                current.rotation = self._robot_start_pose.rotation @ pin.exp3(
+                    self._rot_vel * t
+                )
+                # Interpolate translation
+                start_t = self._robot_start_pose.translation
+                end_t = self._robot_end_pose.translation
+                current.translation = (1.0 - t) * start_t + (t) * end_t
+                point = copy.deepcopy(self._first_trajectory_point)
                 point.point.end_effector_poses[self._params.frame_of_interest] = (
                     pin.SE3ToXYZQUAT(current)
                 )
-                # print(pin.SE3ToXYZQUAT(self._current), flush=True)
-                # point.point.end_effector_velocities[self._params.frame_of_interest] = (
-                #     vel
-                # )
                 inputs.append(weighted_traj_point_to_mpc_msg(point))
             mpc_input_array = MpcInputArray(inputs=inputs)
 
