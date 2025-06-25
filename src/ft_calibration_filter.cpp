@@ -248,6 +248,7 @@ controller_interface::CallbackReturn FTCalibrationFilter::on_activate(
       params_.contact_detection.lower_threshold);
   contact_detector_.set_upper_threshold(
       params_.contact_detection.upper_threshold);
+  contact_detector_.set_axis_mask(params_.contact_detection.axis_mask);
 
   RCLCPP_INFO(this->get_node()->get_logger(), "activate successful");
 
@@ -309,6 +310,7 @@ controller_interface::return_type FTCalibrationFilter::update(
         params_.contact_detection.lower_threshold);
     contact_detector_.set_upper_threshold(
         params_.contact_detection.upper_threshold);
+    contact_detector_.set_axis_mask(params_.contact_detection.axis_mask);
     RCLCPP_INFO(this->get_node()->get_logger(), "Parameters were updated");
   }
 
