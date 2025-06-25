@@ -1,4 +1,10 @@
 ft_calibration_filter:
+  update_rate:
+    type: int
+    description: "Due to a bug in ROS 2 Humble update rate has to be replicated on this level in order to access it within the node..."
+    read_only: true
+    validation:
+      gt<>: 0
   state_force_interfaces_names:
     type: string_array
     description: "Ordered list of names of state interfaces used to measure force from the sensor. Expected order force.xyz, torque.xyz"

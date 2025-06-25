@@ -1,5 +1,6 @@
 ft_calibration_filter:
   ros__parameters:
+    update_rate: 1000 # has to be repeated here as in ROS 2 Humble value form the controller manager is not propagated to the controllers...
     type: panda_deburring/FTCalibrationFilter
     state_force_interfaces_names:
       - ati_mini45/force.x
