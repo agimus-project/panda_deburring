@@ -39,7 +39,7 @@ class TrajectoryPublisher(Node):
 
         self._mpc_input_publisher = self.create_publisher(
             MpcInputArray,
-            "mpc_input",
+            "/agimus_pytroller/mpc_input",
             qos_profile=QoSProfile(
                 depth=1000,
                 reliability=ReliabilityPolicy.BEST_EFFORT,
@@ -48,7 +48,7 @@ class TrajectoryPublisher(Node):
 
         self._buffer_size_subscriber = self.create_subscription(
             Int64,
-            "buffer_size",
+            "/agimus_pytroller/buffer_size",
             self._buffer_size_cb,
             10,
         )
@@ -74,7 +74,7 @@ class TrajectoryPublisher(Node):
 
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
         self._weights_name = "initialize"
-        self._update_params(first_call=True)
+        self._update_params(True)
         self._sequence_cnt = 0
         self._buffer_size = None
         self._in_contact = None
@@ -141,6 +141,8 @@ class TrajectoryPublisher(Node):
             },
             end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
         )
+
+        self.get_logger().warn(f"{stage.w_desired_force}")
 
         traj_weights = TrajectoryPointWeights(
             w_robot_configuration=stage.w_robot_configuration,
@@ -335,34 +337,45 @@ class TrajectoryPublisher(Node):
                 self._update_weighted_trajectory_point(self._weights_name)
                 return
 
-            inputs = []
-            current = pin.SE3()
             # If buffer is already empty
             if self._sequence_cnt >= self._interp_steps:
-                if self._calibration_future is None:
+                current = self._get_current_pose()
+
+                diff = current.inverse() * self._robot_end_pose
+                lin_dist = np.max(diff.translation)
+                ang_dist = np.max(pin.rpy.matrixToRpy(diff.rotation))
+                if (
+                    self._calibration_future is None
+                    and lin_dist < self._params.initialization.pose_tolerance
+                    and ang_dist < self._params.initialization.rot_tolerance
+                ):
                     self.get_logger().info(
                         "Initial position reached. Calibrating sensor."
                     )
                     self._calibration_future = self._calibrate_srv.call_async(
                         Trigger.Request()
                     )
+
+            inputs = []
             for _ in range(self._params.n_buffer_points - self._buffer_size):
                 if self._sequence_cnt < self._interp_steps:
                     self._sequence_cnt += 1
+                # self.get_logger().error(f"interpolation steps {self._buffer_size}")
 
                 t = self._sequence_cnt / self._interp_steps
 
+                target = pin.SE3()
                 # Interpolate rotation
-                current.rotation = self._robot_start_pose.rotation @ pin.exp3(
+                target.rotation = self._robot_start_pose.rotation @ pin.exp3(
                     self._rot_vel * t
                 )
                 # Interpolate translation
                 start_t = self._robot_start_pose.translation
                 end_t = self._robot_end_pose.translation
-                current.translation = (1.0 - t) * start_t + (t) * end_t
+                target.translation = (1.0 - t) * start_t + (t) * end_t
                 point = copy.deepcopy(self._first_trajectory_point)
                 point.point.end_effector_poses[self._params.frame_of_interest] = (
-                    pin.SE3ToXYZQUAT(current)
+                    pin.SE3ToXYZQUAT(target)
                 )
                 inputs.append(weighted_traj_point_to_mpc_msg(point))
             mpc_input_array = MpcInputArray(inputs=inputs)
