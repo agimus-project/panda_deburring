@@ -333,6 +333,7 @@ class TrajectoryPublisher(Node):
                     self.get_logger().error("Failed to reset sensor bias!")
 
                 self._motion_phase = MotionPhases.perform_motion
+                self._last_in_contact_state = False
                 self._weights_name = "seek_contact"
                 self._update_weighted_trajectory_point(self._weights_name)
                 return
