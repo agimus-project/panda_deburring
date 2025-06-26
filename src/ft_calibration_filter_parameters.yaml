@@ -120,3 +120,8 @@ ft_calibration_filter:
       description: "Threshold used to detect transition from not in contact -> in contact."
       validation:
         gt<>: [0.0]
+    axis_mask:
+      type: string
+      description: "Axis masking used to define which axes are used to detect the contact. Axes are define with letters xyz. Threshold is computed as a norm of selected axes."
+      validation:
+        not_empty<>: []
