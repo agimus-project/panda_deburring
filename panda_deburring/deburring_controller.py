@@ -179,7 +179,7 @@ class ControllerImpl(ControllerImplBase):
             oMc = self._robot_data.oMf[self._frame_of_interest_id]
             # oMc.translation += self._ocp_params.oPc_offset
             force_world = oMc.actionInverse.T.dot(force)
-            for i in range(nq):
+            for i in range(nq + 1):
                 self._external_forces[i].vector = (
                     self._robot_data.oMi[i].inverse().actionInverse.T.dot(force_world)
                 )

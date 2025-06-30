@@ -26,7 +26,7 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
     Kv: list[float]
     oPc: tuple[float, float, float]
     constraints: T.List[ConstraintListItem] = dataclasses.field(default_factory=list)
-    with_gravity_torque: bool = False
+    with_gravity_torque_reg: bool = False
     enabled_directions: tuple[bool, bool, bool] = (True, True, True)
 
     def __post_init__(self):
@@ -99,7 +99,7 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
             oPc=np.asarray(self.oPc),
             **extra_kwargs,
         )
-        dam.with_gravity_torque = self.with_gravity_torque
+        dam.with_gravity_torque_reg = self.with_gravity_torque_reg
         dam.tau_grav_weight = 0.0
         dam.with_force_cost = True
         dam.f_des = np.zeros(dam.nc)
@@ -131,7 +131,7 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
             dam.f_des = np.zeros(dam.nc)
             dam.f_weight = np.zeros(dam.nc)
 
-        if dam.with_force_cost:
+        if dam.with_gravity_torque_reg:
             dam.tau_grav_weight = pt.weights.w_robot_effort[0]
 
 
