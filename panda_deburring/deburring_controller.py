@@ -8,6 +8,11 @@ import yaml
 from agimus_controller.factory.robot_model import RobotModelParameters, RobotModels
 from agimus_controller.mpc import MPC
 from agimus_controller.mpc_data import OCPResults
+from agimus_controller.ocp.ocp_croco_generic import (
+    OCPCrocoGeneric,
+    OCPParamsBaseCroco,
+    add_modules,
+)
 from agimus_controller.ocp_param_base import DTFactorsNSeq
 from agimus_controller.trajectory import (
     TrajectoryBuffer,
@@ -21,12 +26,12 @@ from agimus_msgs.msg import MpcDebug, MpcInputArray
 from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
 
-from panda_deburring.ocp_croco_force_feedback import (
-    OCPCrocoForceFeedback,
-    OCPParamsCrocoForceFeedback,
+from panda_deburring.force_feedback_opc_croco_generic import (
+    OCPCrocoContactGeneric,
+    get_globals,
 )
 from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
-    WarmStartShiftPreviousSolutionForceFeedback,
+    WarmStartShiftPreviousSolutionContact,
 )
 
 
@@ -40,7 +45,7 @@ class ControllerImpl(ControllerImplBase):
         ]["pytroller_python_params"]
         # Convert all lists of numbers to numpy arrays
         for sub_cfg_key, sub_cfg in cfg.items():
-            if sub_cfg_key == "dt_factor_n_seq":
+            if sub_cfg_key == "dt_factor_n_seq" or sub_cfg_key == "ocp_definition_file":
                 continue
             for key in sub_cfg.keys():
                 if isinstance(sub_cfg[key], list) and not isinstance(
@@ -56,16 +61,17 @@ class ControllerImpl(ControllerImplBase):
         self._robot_data = self._robot_models.robot_model.createData()
 
         dt_factor_n_seq = DTFactorsNSeq(**cfg["dt_factor_n_seq"])
-        self._ocp_params = OCPParamsCrocoForceFeedback(
-            dt_factor_n_seq=dt_factor_n_seq, **cfg["ocp_params_force_feedback"]
+        self._ocp_params = OCPParamsBaseCroco(
+            dt_factor_n_seq=dt_factor_n_seq, **cfg["ocp_params"]
         )
-
-        ocp = OCPCrocoForceFeedback(self._robot_models, self._ocp_params)
+        add_modules(get_globals())
+        yaml_file = cfg["ocp_definition_file"]
+        ocp = OCPCrocoContactGeneric(self._robot_models, self._ocp_params, yaml_file)
 
         traj_buffer = TrajectoryBuffer(dt_factor_n_seq)
 
-        ws_shift = WarmStartShiftPreviousSolutionForceFeedback()
-        ws_shift.setup(self._robot_models, self._ocp_params)
+        ws_shift = WarmStartShiftPreviousSolutionContact()
+        ws_shift.setup(self._robot_models, self._ocp_params, yaml_file)
 
         # Use WarmStartReference for initialization
         ws_ref = WarmStartReference()
@@ -80,7 +86,7 @@ class ControllerImpl(ControllerImplBase):
         self._nv_zeros = np.zeros(self._robot_models.robot_model.nv)
         self._u_zeros = np.zeros(self._robot_models.robot_model.nv)
         self._frame_of_interest_id = self._robot_models.robot_model.getFrameId(
-            self._ocp_params.frame_of_interest
+            "ati_mini45_measurement_reference"
         )
 
         self._first_call = True
@@ -150,13 +156,11 @@ class ControllerImpl(ControllerImplBase):
         return mpc_debug_data_to_msg(self.mpc.mpc_debug_data)
 
     def on_update(self, state: np.array) -> np.array:
-        # state[-6:] = -state[-6:]
-        # state = np.concatenate((state, np.zeros(6)))
-
         now = time.time()
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv
 
+        assert state.size == nq + nv + 6 + 1
         # Extract state values
         q = state[:nq]
         dq = state[nq : nq + nv]
@@ -173,7 +177,7 @@ class ControllerImpl(ControllerImplBase):
                 self._robot_models.robot_model, self._robot_data, q
             )
             oMc = self._robot_data.oMf[self._frame_of_interest_id]
-            oMc.translation += self._ocp_params.oPc_offset
+            # oMc.translation += self._ocp_params.oPc_offset
             force_world = oMc.actionInverse.T.dot(force)
             for i in range(nq):
                 self._external_forces[i].vector = (
@@ -189,8 +193,13 @@ class ControllerImpl(ControllerImplBase):
             )
 
             T = self._ocp_params.horizon_size
+            directions = self.mpc._ocp.enabled_directions
+            if sum(directions) == 3:
+                states = state[:-4]
+            else:
+                states = np.concatenate((q, dq, force[:3][directions]))
             dummy_warmstart = OCPResults(
-                states=[state[:-4]] * (T + 1), feed_forward_terms=[tau_g] * T
+                states=[states] * (T + 1), feed_forward_terms=[tau_g] * T
             )
             self.mpc._warm_start.update_previous_solution(dummy_warmstart)
             self._first_call = False

@@ -1,0 +1,65 @@
+running_model:
+  class: IAMSoftContactAugmented
+  differential:
+    class: DAMSoftContactAugmentedFwdDynamics
+    Kp: [150.0]
+    Kv: [0.5]
+    frame_name: ati_mini45_measurement_reference
+    oPc: [0.0, 0.0, 0.0]
+    with_gravity_torque: True
+    enabled_directions: [False, False, True]
+    costs:
+      - name: state_reg
+        update: true
+        weight: 1.0
+        cost:
+          class: CostModelResidual
+          activation:
+            class: ActivationModelWeightedQuad
+            weights: 1.0
+          residual:
+            class: ResidualModelState
+            # - name: goal_tracking
+            #   update: true
+            #   weight: 1.0
+            #   cost:
+            #     class: CostModelResidual
+            #     activation:
+            #       class: ActivationModelWeightedQuad
+            #       weights: 1.0
+            #     residual:
+            #       class: ResidualModelFramePlacement
+            #       id: 0
+terminal_model:
+  class: IAMSoftContactAugmented
+  differential:
+    class: DAMSoftContactAugmentedFwdDynamics
+    Kp: [150.0]
+    Kv: [0.5]
+    frame_name: ati_mini45_measurement_reference
+    oPc: [0.0, 0.0, 0.0]
+    with_gravity_torque: False
+    enabled_directions: [False, False, True]
+    costs:
+      - name: state_reg
+        update: true
+        weight: 0.0
+        cost:
+          class: CostModelResidual
+          activation:
+            class: ActivationModelWeightedQuad
+            weights: 1.0
+          residual:
+            class: ResidualModelState
+    # - name: goal_tracking
+    #   update: true
+    #   weight: 0.0
+    #   active: false
+    #   cost:
+    #     class: CostModelResidual
+    #     activation:
+    #       class: ActivationModelWeightedQuad
+    #       weights: 1.0
+    #     residual:
+    #       class: ResidualModelFramePlacement
+    #       id: 0

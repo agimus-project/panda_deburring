@@ -74,7 +74,7 @@ agimus_pytroller:
     type: agimus_pytroller/AgimusPytroller
     python_module: panda_deburring.deburring_controller
     python_downsample_factor: 2
-    error_on_no_data: true
+    error_on_no_data: false
     interpolate_trajectory: true
     input_interfaces:
       - fer_joint1/position
@@ -119,11 +119,11 @@ agimus_pytroller:
       topic_name: "mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["mpc_debug_data"]
-    mpc_debug_data:
-      topic_name: "mpc_debug"
-      topic_type: agimus_msgs/msg/MpcDebug
-      python_msg_getter_name: get_ocp_results
+    # published_topics: ["mpc_debug_data"]
+    # mpc_debug_data:
+    #   topic_name: "mpc_debug"
+    #   topic_type: agimus_msgs/msg/MpcDebug
+    #   python_msg_getter_name: get_ocp_results
     pytroller_python_params:
       robot_model_params:
         moving_joint_names:
@@ -138,26 +138,15 @@ agimus_pytroller:
         collision_as_capsule: false
         self_collision: false
         armature: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
+      ocp_definition_file: "/home/gepetto/ros2_ws/src/panda_deburring/config/ocp_definition_file.yaml"
       dt_factor_n_seq:
         factors: [1]
         n_steps: [5]
-      ocp_params_force_feedback:
+      ocp_params:
         dt: 0.002
         horizon_size: 5
         solver_iters: 2
         callbacks: false
         qp_iters: 25
         use_debug_data: false
-        with_force_cost: true
-        with_gravity_torque_reg: true
-        frame_of_interest: ati_mini45_measurement_reference
-        x_reg_cost_weight: 1.0
-        frame_translation_cost_weight: 1.0
-        frame_rotation_cost_weight: 1.0
-        frame_velocity_weights: [3.125, 3.125, 3.125, 2., 2., 2.]
-        frame_velocity_cost_weight: 1.0
-        Kp: [150.0, 150.0, 150.0]
-        Kv: [0.5, 0.5, 0.5]
-        oPc_offset: [0.0, 0.0, 0.0]
-        contact_type: "3D"
-        solver_nthreads: 16
+        n_threads: 16
