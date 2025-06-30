@@ -212,7 +212,7 @@ class OCPCrocoContactGeneric(OCPCrocoGeneric):
                 [mim_solvers.CallbackVerbose(), mim_solvers.CallbackLogger()]
             )
 
-        self.init_debug_data_references_and_residuals()
+        self.init_debug_data_attributes()
 
     @property
     def enabled_directions(self) -> int:
