@@ -138,7 +138,7 @@ agimus_pytroller:
         collision_as_capsule: false
         self_collision: false
         armature: [0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
-      ocp_definition_file: "/home/gepetto/ros2_ws/src/panda_deburring/config/ocp_definition_file.yaml"
+      ocp_definition_file: "package://panda_deburring/config/ocp_definition_file.yaml"
       dt_factor_n_seq:
         factors: [1]
         n_steps: [15]
