@@ -29,12 +29,20 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
     constraints: T.List[ConstraintListItem] = dataclasses.field(default_factory=list)
     with_gravity_torque_reg: bool = False
     enabled_directions: tuple[bool, bool, bool] = (True, True, True)
+    ref: str = "LOCAL"
+    cost_ref: str = "LOCAL"
 
     def __post_init__(self):
         assert force_feedback_mpc is not None, "Module force_feedback_mpc not found"
 
         self._dimension = sum(self.enabled_directions)
         assert self._dimension in [1, 3], "Soft contact is either 1D or 3D."
+
+        for param in ("ref", "cost_ref"):
+            assert getattr(self, param) in ["WORLD", "LOCAL", "LOCAL_WORLD_ALIGNED"], (
+                f"DAMSoftContactAugmentedFwdDynamics.{param} has to be one of: "
+                "'WORLD', 'LOCAL', 'LOCAL_WORLD_ALIGNED'."
+            )
 
     @classmethod
     def from_dict(cls, kwargs: T.Dict[str, T.Any]):
@@ -105,6 +113,9 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
         dam.with_force_cost = True
         dam.f_des = np.zeros(dam.nc)
         dam.f_weight = np.zeros(dam.nc)
+
+        dam.ref = getattr(pinocchio, self.ref)
+        dam.cost_ref_ = getattr(pinocchio, self.cost_ref)
 
         return dam
 
