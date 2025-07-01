@@ -250,6 +250,14 @@ class OCPCrocoContactGeneric(OCPCrocoGeneric):
     def enabled_directions(self) -> int:
         return self._enabled_directions
 
+    @property
+    def frame_name(self) -> str:
+        return self._data.running_model.differential.frame_name
+
+    @property
+    def oPc(self) -> npt.ArrayLike:
+        return np.asarray(self._data.running_model.differential.oPc)
+
 
 def get_globals():
     return globals()
