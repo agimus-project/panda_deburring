@@ -213,6 +213,38 @@ class OCPCrocoContactGeneric(OCPCrocoGeneric):
             )
 
         self.init_debug_data_attributes()
+        self._first_call = True
+
+    def set_reference_weighted_trajectory(
+        self, reference_weighted_trajectory: list[WeightedTrajectoryPoint]
+    ):
+        """Set the reference trajectory for the OCP."""
+
+        assert len(reference_weighted_trajectory) == self.n_controls + 1
+
+        problem = self._solver.problem
+
+        # Modify running costs reference and weights
+        if self._first_call:
+            for running_model, ref_weighted_pt in zip(
+                problem.runningModels, reference_weighted_trajectory[:-1]
+            ):
+                self._data.running_model.update(
+                    self._build_data, running_model, ref_weighted_pt
+                )
+            self._first_call = False
+        else:
+            problem.circularAppend(problem.runningModels[0])
+
+        self._data.running_model.update(
+            self._build_data,
+            problem.runningModels[-1],
+            reference_weighted_trajectory[-2],
+        )
+
+        self._data.terminal_model.update(
+            self._build_data, problem.terminalModel, reference_weighted_trajectory[-1]
+        )
 
     @property
     def enabled_directions(self) -> int:
