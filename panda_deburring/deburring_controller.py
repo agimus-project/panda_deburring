@@ -29,6 +29,11 @@ from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
     WarmStartShiftPreviousSolutionForceFeedback,
 )
 
+try:
+    import crocoddyl_plotter
+except:
+    pass
+
 
 class ControllerImpl(ControllerImplBase):
     def __init__(self, robot_description: str) -> None:
@@ -82,6 +87,15 @@ class ControllerImpl(ControllerImplBase):
         self._frame_of_interest_id = self._robot_models.robot_model.getFrameId(
             self._ocp_params.frame_of_interest
         )
+
+        self._use_cost_plotter = False
+        plotter_cfg = cfg["cost_plotter"]
+        if plotter_cfg["use_cost_plotter"]:
+            self._use_cost_plotter = True
+            self._iteration_counter = 0
+            self._cost_plotter_server = crocoddyl_plotter.CrocoddylPlotterServer(
+                plotter_cfg["cost_plotter_url"]
+            )
 
         self._first_call = True
 
@@ -217,5 +231,11 @@ class ControllerImpl(ControllerImplBase):
             self._nv_zeros,
             self._nv_zeros,
         )
+
+        if self._use_cost_plotter:
+            self._cost_plotter_server.send(
+                self.mpc._ocp._solver.problem, self._iteration_counter
+            )
+            self._iteration_counter += 1
 
         return ocp_res.feed_forward_terms[0] - tau_g

@@ -125,6 +125,9 @@ agimus_pytroller:
       topic_type: agimus_msgs/msg/MpcDebug
       python_msg_getter_name: get_ocp_results
     pytroller_python_params:
+      cost_plotter:
+        use_cost_plotter: true
+        cost_plotter_url: 127.0.0.1:2137
       robot_model_params:
         moving_joint_names:
           - fer_joint1
