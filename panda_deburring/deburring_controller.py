@@ -6,7 +6,6 @@ import numpy as np
 import pinocchio as pin
 import yaml
 from agimus_controller.factory.robot_model import RobotModelParameters, RobotModels
-from agimus_controller.mpc import MPC
 from agimus_controller.mpc_data import OCPResults
 from agimus_controller.ocp.ocp_croco_generic import (
     OCPCrocoGeneric,
@@ -30,6 +29,7 @@ from panda_deburring.force_feedback_opc_croco_generic import (
     OCPCrocoContactGeneric,
     get_globals,
 )
+from panda_deburring.mpc import DeburringMPC
 from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
     WarmStartShiftPreviousSolutionContact,
 )
@@ -77,7 +77,7 @@ class ControllerImpl(ControllerImplBase):
         ws_ref = WarmStartReference()
         ws_ref.setup(self._robot_models._robot_model)
 
-        self.mpc = MPC()
+        self.mpc = DeburringMPC()
         self.mpc.setup(ocp=ocp, warm_start=ws_shift, buffer=traj_buffer)
 
         self._external_forces = [
@@ -225,3 +225,6 @@ class ControllerImpl(ControllerImplBase):
         )
 
         return ocp_res.feed_forward_terms[0] - tau_g
+
+    def on_post_update(self) -> None:
+        self.mpc.update_references()

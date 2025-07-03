@@ -63,14 +63,14 @@ terminal_model:
     Kv: [0.5, 0.5, 0.5]
     frame_name: ati_mini45_measurement_reference
     oPc: [0.0, 0.0, 0.0]
-    with_gravity_torque_reg: False
+    with_gravity_torque_reg: True
     enabled_directions: [True, True, True]
     ref: LOCAL
     cost_ref: LOCAL
     costs:
       - name: state_reg
         update: true
-        weight: 0.0
+        weight: 1.0
         cost:
           class: CostModelResidual
           activation:
@@ -78,6 +78,17 @@ terminal_model:
             weights: 1.0
           residual:
             class: ResidualModelState
+      - name: frame_pose_tracking
+        update: true
+        weight: 1.0
+        cost:
+          class: CostModelResidual
+          activation:
+            class: ActivationModelWeightedQuad
+            weights: 1.0
+          residual:
+            class: ResidualModelFrameTranslation
+            id: 0
       - name: frame_rotation_tracking
         update: true
         weight: 1.0
