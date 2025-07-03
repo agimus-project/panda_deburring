@@ -86,12 +86,7 @@ class TrajectoryPublisher(Node):
                 w_robot_acceleration=[0.0] * len(weights.robot_configuration),
                 w_robot_effort=weights.robot_effort,
                 w_forces={
-                    frame_of_interest: np.concatenate(
-                        (
-                            np.asarray(weights.desired_force),
-                            np.zeros(3),
-                        )
-                    )
+                    frame_of_interest: np.asarray(weights.desired_force),
                 },
                 w_end_effector_poses={
                     frame_of_interest: np.concatenate(
