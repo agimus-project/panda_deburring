@@ -25,11 +25,11 @@ from agimus_msgs.msg import MpcDebug, MpcInputArray
 from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
 
-from panda_deburring.force_feedback_opc_croco_generic import (
+from panda_deburring.mpc import DeburringMPC
+from panda_deburring.panda_deburring.force_feedback_ocp_croco_generic import (
     OCPCrocoContactGeneric,
     get_globals,
 )
-from panda_deburring.mpc import DeburringMPC
 from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
     WarmStartShiftPreviousSolutionContact,
 )
