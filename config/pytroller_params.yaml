@@ -125,6 +125,8 @@ agimus_pytroller:
     #   topic_type: agimus_msgs/msg/MpcDebug
     #   python_msg_getter_name: get_ocp_results
     pytroller_python_params:
+      p_gains: [5.0, 5.0, 5.0, 5.0, 1.0, 1.0, 1.0]
+      d_gains: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1]
       robot_model_params:
         moving_joint_names:
           - fer_joint1

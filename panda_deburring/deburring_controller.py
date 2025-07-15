@@ -47,6 +47,9 @@ class ControllerImpl(ControllerImplBase):
         for sub_cfg_key, sub_cfg in cfg.items():
             if sub_cfg_key == "dt_factor_n_seq" or sub_cfg_key == "ocp_definition_file":
                 continue
+            if isinstance(sub_cfg, list):
+                sub_cfg = np.asarray(sub_cfg, dtype=np.float64)
+                continue
             for key in sub_cfg.keys():
                 if isinstance(sub_cfg[key], list) and not isinstance(
                     sub_cfg[key][0], str
@@ -85,6 +88,11 @@ class ControllerImpl(ControllerImplBase):
         ]
         self._nv_zeros = np.zeros(self._robot_models.robot_model.nv)
         self._u_zeros = np.zeros(self._robot_models.robot_model.nv)
+
+        self._in_pd_mode = True
+        self._p_gains = cfg["p_gains"]
+        self._d_gains = cfg["d_gains"]
+        self._q_init = None
 
         self._first_call = True
 
@@ -171,6 +179,7 @@ class ControllerImpl(ControllerImplBase):
 
         # On first call, initialize warmstart and return zero control
         if self._first_call:
+            self._q_init = q.copy()
             pin.computeJointJacobians(rmodel, self._robot_data, q)
             frame_of_interest_id = rmodel.getFrameId(self.mpc._ocp.frame_name)
             oMc = self._robot_data.oMf[frame_of_interest_id]
@@ -214,7 +223,11 @@ class ControllerImpl(ControllerImplBase):
         ocp_res = self.mpc.run(initial_state=x0_traj_point, current_time_ns=now)
 
         if ocp_res is None:
+            if self._in_pd_mode:
+                # Compute safety PD control
+                return (self._q_init - q) * self._p_gains - dq * self._d_gains
             return self._u_zeros
+        self._in_pd_mode = False
 
         tau_g = pin.rnea(
             rmodel,
