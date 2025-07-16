@@ -13,6 +13,7 @@ from agimus_controller.trajectory import (
 )
 from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
+from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from std_msgs.msg import Bool, Int64
@@ -85,6 +86,7 @@ class TrajectoryPublisher(Node):
         self._robot_start_pose = pin.SE3()
         self._rot_vel = np.zeros(3)
         self._motion_phase = MotionPhases.wait_for_data
+        self._calibration_cooldown = None
 
         self._generator_cb = {"sanding_generator": self._circle_generator}[
             self._params.trajectory_generator_name
@@ -331,12 +333,16 @@ class TrajectoryPublisher(Node):
                     # Retry calling the service by
                     self._calibration_future = None
                     self.get_logger().error("Failed to reset sensor bias!")
-
-                self._motion_phase = MotionPhases.perform_motion
-                self._last_in_contact_state = False
-                self._weights_name = "seek_contact"
-                self._update_weighted_trajectory_point(self._weights_name)
-                return
+                if self._calibration_cooldown is None:
+                    self._calibration_cooldown = self.get_clock().now()
+                elif self.get_clock().now() - self._calibration_cooldown > Duration(
+                    seconds=2.0
+                ):
+                    self._motion_phase = MotionPhases.perform_motion
+                    self._last_in_contact_state = False
+                    self._weights_name = "seek_contact"
+                    self._update_weighted_trajectory_point(self._weights_name)
+                    return
 
             # If buffer is already empty
             if self._sequence_cnt >= self._interp_steps:

@@ -33,7 +33,7 @@ ft_calibration_filter:
       - agimus_pytroller/ati_mini45/torque.y
       - agimus_pytroller/ati_mini45/torque.z
     measurement_frame_id: ati_mini45_measurement_reference
-    bias_measurement_samples: 500
+    bias_measurement_samples: 50
     gravity_vector: [0.0, 0.0, -9.81]
     invert_forces: true
     contact_detection:
@@ -41,7 +41,7 @@ ft_calibration_filter:
       augment_state: true
       command_interface_name: agimus_pytroller/in_contact
       lower_threshold: 0.2
-      upper_threshold: 1.0
+      upper_threshold: 1.5
       axis_mask: "z"
     calibration:
       measurement_frame:
@@ -118,7 +118,7 @@ agimus_pytroller:
       topic_name: "~/mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["mpc_debug_data", "get_buffer_size"]
+    published_topics: ["get_buffer_size"]
     mpc_debug_data:
       topic_name: "~/mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
@@ -146,12 +146,12 @@ agimus_pytroller:
       ocp_definition_file: "package://panda_deburring/config/ocp_definition_file.yaml"
       dt_factor_n_seq:
         factors: [1]
-        n_steps: [15]
+        n_steps: [3]
       ocp_params:
         dt: 0.002
-        horizon_size: 15
-        solver_iters: 20
+        horizon_size: 3
+        solver_iters: 1
         callbacks: false
-        qp_iters: 100
+        qp_iters: 25
         use_debug_data: false
-        n_threads: 1
+        n_threads: 16
