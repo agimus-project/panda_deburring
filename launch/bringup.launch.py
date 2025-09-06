@@ -41,6 +41,7 @@ def launch_setup(
             "external_controllers_params": pytroller_params,
             "rviz_config_path": rviz_config_path,
             "use_ft_sensor": "true",
+            "ee_id": "ati_mini45_with_camera",
         },
     )
 
