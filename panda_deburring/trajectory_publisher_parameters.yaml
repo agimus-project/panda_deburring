@@ -22,7 +22,12 @@ trajectory_publisher:
     read_only: true
     validation:
       gt<>: [0]
-  frame_of_interest:
+  tool_frame_id:
+    type: string
+    description: "Name of a frame associated to contact point."
+    validation:
+      not_empty<>: []
+  measurement_frame_id:
     type: string
     description: "Name of a frame associated to contact point."
     validation:

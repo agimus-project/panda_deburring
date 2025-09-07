@@ -121,7 +121,8 @@ class TrajectoryPublisher(Node):
         self.get_logger().info(f"Setting weights to '{state_name}'.")
         stage = self._params.get_entry(state_name)
 
-        frame_of_interest = self._params.frame_of_interest
+        tool_frame_id = self._params.tool_frame_id
+        measurement_frame_id = self._params.measurement_frame_id
         traj_point = TrajectoryPoint(
             time_ns=time.time_ns(),
             robot_configuration=np.asarray(stage.robot_configuration),
@@ -129,17 +130,19 @@ class TrajectoryPublisher(Node):
             robot_acceleration=np.zeros(len(stage.robot_velocity)),
             robot_effort=np.zeros(len(stage.robot_velocity)),
             forces={
-                frame_of_interest: pin.Force(np.array(stage.desired_force), np.zeros(3))
+                measurement_frame_id: pin.Force(
+                    np.array(stage.desired_force), np.zeros(3)
+                )
             },
             end_effector_poses={
-                frame_of_interest: np.concatenate(
+                tool_frame_id: np.concatenate(
                     (
                         np.asarray(stage.frame_translation),
                         np.asarray(stage.frame_rotation),
                     ),
                 )
             },
-            end_effector_velocities={frame_of_interest: pin.Motion.Zero()},
+            end_effector_velocities={tool_frame_id: pin.Motion.Zero()},
         )
 
         self.get_logger().warn(f"{stage.w_desired_force}")
@@ -150,7 +153,7 @@ class TrajectoryPublisher(Node):
             w_robot_acceleration=[0.0] * len(stage.w_robot_configuration),
             w_robot_effort=stage.w_robot_effort,
             w_forces={
-                frame_of_interest: np.concatenate(
+                measurement_frame_id: np.concatenate(
                     (
                         np.asarray(stage.w_desired_force),
                         np.zeros(3),
@@ -158,7 +161,7 @@ class TrajectoryPublisher(Node):
                 )
             },
             w_end_effector_poses={
-                frame_of_interest: np.concatenate(
+                tool_frame_id: np.concatenate(
                     (
                         np.asarray(stage.w_frame_translation),
                         np.asarray(stage.w_frame_rotation),
@@ -166,7 +169,7 @@ class TrajectoryPublisher(Node):
                 )
             },
             w_end_effector_velocities={
-                frame_of_interest: np.concatenate(
+                tool_frame_id: np.concatenate(
                     (
                         np.asarray(stage.w_frame_linear_velocity),
                         np.asarray(stage.w_frame_angular_velocity),
@@ -207,14 +210,12 @@ class TrajectoryPublisher(Node):
         dy = r * omega * np.cos(t * omega)
         dcircle = np.array([dx, dy, 0.0])
 
-        point.point.end_effector_poses[self._params.frame_of_interest][:3] = (
+        point.point.end_effector_poses[self._params.tool_frame_id][:3] = (
             np.array(self._params.get_entry(self._weights_name).frame_translation)
             + circle
         )
 
-        point.point.end_effector_velocities[
-            self._params.frame_of_interest
-        ].linear = dcircle
+        point.point.end_effector_velocities[self._params.tool_frame_id].linear = dcircle
 
         return point
 
@@ -225,7 +226,7 @@ class TrajectoryPublisher(Node):
             bool: Indicates if transformation can be obtained.
         """
         parent = self._params.robot_base_frame
-        child = self._params.frame_of_interest
+        child = self._params.tool_frame_id
         # For some reason standard check transform doesn't work in this node so
         # a walkaround had to be used...
         try:
@@ -242,7 +243,7 @@ class TrajectoryPublisher(Node):
             pin.SE3: End effector pose as SE3 object
         """
         parent = self._params.robot_base_frame
-        child = self._params.frame_of_interest
+        child = self._params.tool_frame_id
         transform = self._buffer.lookup_transform(
             parent, child, rclpy.time.Time()
         ).transform
@@ -280,7 +281,7 @@ class TrajectoryPublisher(Node):
             if not self._check_can_tarnsform():
                 self.get_logger().info(
                     f"Waiting for transformation between '{self._params.robot_base_frame}' "
-                    f"and '{self._params.frame_of_interest}' to be available...",
+                    f"and '{self._params.tool_frame_id}' to be available...",
                     throttle_duration_sec=5.0,
                 )
                 return
@@ -292,7 +293,7 @@ class TrajectoryPublisher(Node):
             # Target pose of the interpolation is the first point of the trajectory
             self._robot_end_pose = pin.XYZQUATToSE3(
                 self._first_trajectory_point.point.end_effector_poses[
-                    self._params.frame_of_interest
+                    self._params.tool_frame_id
                 ]
             )
             # Separately interpolate in SO3 and R3 separately to obtain linear motion
@@ -375,7 +376,7 @@ class TrajectoryPublisher(Node):
                 end_t = self._robot_end_pose.translation
                 target.translation = (1.0 - t) * start_t + (t) * end_t
                 point = copy.deepcopy(self._first_trajectory_point)
-                point.point.end_effector_poses[self._params.frame_of_interest] = (
+                point.point.end_effector_poses[self._params.tool_frame_id] = (
                     pin.SE3ToXYZQUAT(target)
                 )
                 inputs.append(weighted_traj_point_to_mpc_msg(point))

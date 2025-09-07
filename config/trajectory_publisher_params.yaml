@@ -4,7 +4,8 @@ trajectory_publisher_node:
     update_frequency: 100.0
     ocp_dt: 0.002
     n_buffer_points: 50
-    frame_of_interest: ati_mini45_measurement_reference
+    measurement_frame_id: ati_mini45_measurement_reference
+    tool_frame_id: fer_ati_mini45_with_camera_tool
     robot_base_frame: fer_link0
     initialization:
       max_linear_velocity: 0.1
@@ -12,49 +13,49 @@ trajectory_publisher_node:
       pose_tolerance: 0.08
       rot_tolerance: 0.05
     initialize:
-      robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
+      robot_configuration: [-0.02164, 0.11352, -0.01205, -2.70992, 0.00436, 2.82343, 0.74763]
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      frame_translation: [0.5, 0.0, 0.25]
-      frame_rotation: [0.0, 0.0, 1.0, 0.0]
+      frame_translation: [0.43, -0.015, 0.1]
+      frame_rotation: [1.0, 0.0, 0.0, 0.0]
       desired_force: [0.0, 0.0, 0.0]
-      w_robot_configuration: [1.0, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-      w_robot_velocity: [0.1, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      w_frame_rotation: [200.0, 200.0, 200.0]
-      w_frame_translation: [200.0, 200.0, 200.0]
-      w_frame_angular_velocity: [10.0, 10.0, 10.0]
-      w_frame_linear_velocity: [1.0, 1.0, 1.0]
+      w_robot_configuration: [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
+      w_robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_robot_effort: [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      w_frame_rotation: [0.0, 0.0, 0.0]
+      w_frame_translation: [5.0, 5.0, 5.0]
+      w_frame_angular_velocity: [0.0, 0.0, 0.0]
+      w_frame_linear_velocity: [0.0, 0.0, 0.0]
       w_desired_force: [0.0, 0.0, 0.0]
     seek_contact:
-      robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
+      robot_configuration: [-0.03177, 0.3977, -0.00148, -2.65091, 0.00619, 3.04861, 0.7461]
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      frame_translation: [0.5, 0.0, -0.05]
-      frame_rotation: [0.0, 0.0, 1.0, 0.0]
-      desired_force: [0.0, 0.0, 2.0]
-      w_robot_configuration: [0.01, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
-      w_robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      w_frame_rotation: [3.0, 3.0, 3.0]
-      w_frame_translation: [30.0, 30.0, 1.1]
+      frame_translation: [0.43, -0.015, 0.0]
+      frame_rotation: [1.0, 0.0, 0.0, 0.0]
+      desired_force: [0.0, 0.0, 0.5]
+      w_robot_configuration: [0.03, 0.03, 0.03, 0.03, 0.03, 0.03, 0.03]
+      w_robot_velocity: [0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002]
+      w_robot_effort: [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      w_frame_rotation: [0.0, 0.0, 0.0]
+      w_frame_translation: [5.0, 5.0, 0.0]
       w_frame_angular_velocity: [0.0, 0.0, 0.0]
-      w_frame_linear_velocity: [2.0, 2.0, 8.0]
-      w_desired_force: [0.0, 0.0, 0.0]
+      w_frame_linear_velocity: [0.0, 0.0, 0.0]
+      w_desired_force: [0.0, 0.0, 0.003]
     in_contact:
-      robot_configuration: [0.0, 0.1865, 0.0, -2.4, 0.0, 2.5915, 0.7863]
+      robot_configuration: [-0.03177, 0.3977, -0.00148, -2.65091, 0.00619, 3.04861, 0.7461]
       robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      frame_translation: [0.5, 0.0, 0.0]
-      frame_rotation: [0.0, 0.0, 1.0, 0.0]
-      desired_force: [0.0, 0.0, 5.0]
-      w_robot_configuration: [0.2, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
-      w_robot_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-      w_robot_effort: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
-      w_frame_rotation: [5.0, 5.0, 0.0]
-      w_frame_translation: [30.0, 30.0, 0.0]
+      frame_translation: [0.43, -0.015, 0.0]
+      frame_rotation: [1.0, 0.0, 0.0, 0.0]
+      desired_force: [0.0, 0.0, .0]
+      w_robot_configuration: [0.01, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_robot_velocity: [0.001, 0.001, 0.001, 0.001, 0.001, 0.001, 0.001]
+      w_robot_effort: [0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001]
+      w_frame_rotation: [0.0, 0.0, 0.0]
+      w_frame_translation: [5.0, 5.0, 0.0]
       w_frame_angular_velocity: [0.0, 0.0, 0.0]
-      w_frame_linear_velocity: [2.0, 2.0, 0.0]
-      w_desired_force: [0.0, 0.0, 1.0]
+      w_frame_linear_velocity: [0.0, 0.0, 0.0]
+      w_desired_force: [0.0, 0.0, 0.0001]
     sanding_generator:
       circle:
-        radius: 0.05
+        radius: 0.000000001
         frequency: 0.1
-      start_time: 5.0
+      start_time: 0.0
