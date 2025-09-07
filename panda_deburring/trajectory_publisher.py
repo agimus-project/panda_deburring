@@ -13,13 +13,16 @@ from agimus_controller.trajectory import (
 )
 from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
+from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
+from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
-from std_msgs.msg import Bool, Int64
+from std_msgs.msg import Bool, ColorRGBA, Header, Int64
 from std_srvs.srv import Trigger
 from tf2_ros import TransformException
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from visualization_msgs.msg import Marker, MarkerArray
 
 from panda_deburring.trajectory_publisher_parameters import trajectory_publisher
 
@@ -44,6 +47,10 @@ class TrajectoryPublisher(Node):
                 depth=1000,
                 reliability=ReliabilityPolicy.BEST_EFFORT,
             ),
+        )
+
+        self._deburring_markers_pub = self.create_publisher(
+            MarkerArray, "deburring_markers", 10
         )
 
         self._buffer_size_subscriber = self.create_subscription(
@@ -72,6 +79,11 @@ class TrajectoryPublisher(Node):
         self._buffer = Buffer()
         self._listener = TransformListener(self._buffer, self)
 
+        self._measurement_offset = pin.SE3(
+            pin.rpy.rpyToMatrix(np.deg2rad(np.array([180.0, 0.0, 120.0]))),
+            np.array([0.000, 0.000, 0.074]),
+        )
+
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
         self._weights_name = "initialize"
         self._update_params(True)
@@ -85,6 +97,16 @@ class TrajectoryPublisher(Node):
         self._robot_start_pose = pin.SE3()
         self._rot_vel = np.zeros(3)
         self._motion_phase = MotionPhases.wait_for_data
+
+        self._marker_base = Marker(
+            header=Header(frame_id="world"),
+            ns="deburring",
+            type=Marker.SPHERE,
+            action=Marker.ADD,
+            scale=Vector3(x=0.01, y=0.01, z=0.01),
+            color=ColorRGBA(**dict(zip("rgba", [1.0, 0.0, 0.0, 1.0]))),
+            lifetime=Duration(seconds=self._params.rate * 1.25).to_msg(),
+        )
 
         self._generator_cb = {"sanding_generator": self._circle_generator}[
             self._params.trajectory_generator_name
@@ -123,6 +145,12 @@ class TrajectoryPublisher(Node):
 
         tool_frame_id = self._params.tool_frame_id
         measurement_frame_id = self._params.measurement_frame_id
+
+        tool_pose = pin.SE3(
+            pin.Quaternion(np.array(stage.frame_rotation)),
+            np.array(stage.frame_translation),
+        )
+
         traj_point = TrajectoryPoint(
             time_ns=time.time_ns(),
             robot_configuration=np.asarray(stage.robot_configuration),
@@ -135,12 +163,8 @@ class TrajectoryPublisher(Node):
                 )
             },
             end_effector_poses={
-                tool_frame_id: np.concatenate(
-                    (
-                        np.asarray(stage.frame_translation),
-                        np.asarray(stage.frame_rotation),
-                    ),
-                )
+                tool_frame_id: tool_pose,
+                measurement_frame_id: tool_pose * self._measurement_offset,
             },
             end_effector_velocities={tool_frame_id: pin.Motion.Zero()},
         )
@@ -166,7 +190,13 @@ class TrajectoryPublisher(Node):
                         np.asarray(stage.w_frame_translation),
                         np.asarray(stage.w_frame_rotation),
                     )
-                )
+                ),
+                measurement_frame_id: np.concatenate(
+                    (
+                        np.asarray(stage.w_frame_translation),
+                        np.asarray(stage.w_frame_rotation),
+                    )
+                ),
             },
             w_end_effector_velocities={
                 tool_frame_id: np.concatenate(
@@ -210,7 +240,7 @@ class TrajectoryPublisher(Node):
         dy = r * omega * np.cos(t * omega)
         dcircle = np.array([dx, dy, 0.0])
 
-        point.point.end_effector_poses[self._params.tool_frame_id][:3] = (
+        point.point.end_effector_poses[self._params.tool_frame_id].translation = (
             np.array(self._params.get_entry(self._weights_name).frame_translation)
             + circle
         )
@@ -291,11 +321,12 @@ class TrajectoryPublisher(Node):
             self._robot_start_pose = self._get_current_pose()
 
             # Target pose of the interpolation is the first point of the trajectory
-            self._robot_end_pose = pin.XYZQUATToSE3(
+            self._robot_end_pose = (
                 self._first_trajectory_point.point.end_effector_poses[
                     self._params.tool_frame_id
                 ]
             )
+
             # Separately interpolate in SO3 and R3 separately to obtain linear motion
             diff = self._robot_start_pose.inverse() * self._robot_end_pose
             self._rot_vel = pin.log3(diff.rotation)
