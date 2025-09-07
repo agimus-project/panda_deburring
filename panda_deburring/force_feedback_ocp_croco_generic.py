@@ -22,7 +22,7 @@ from agimus_controller.trajectory import (
 class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
     class_: T.ClassVar[str] = "DAMSoftContactAugmentedFwdDynamics"
     costs: T.List[CostModelSumItem]
-    frame_name: str
+    frame_id: str
     Kp: list[float]
     Kv: list[float]
     oPc: tuple[float, float, float]
@@ -88,7 +88,7 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
             c = cost.cost.build(data)
             costs.addCost(cost.name, c, cost.weight, cost.active)
 
-        fid = data.state.pinocchio.getFrameId(self.frame_name)
+        fid = data.state.pinocchio.getFrameId(self.frame_id)
         dam_cls, extra_kwargs = self._dam_cls_and_kwargs
 
         if self.constraints is not None:
@@ -125,18 +125,15 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
                 cost.cost.update(data, dam.costs.costs[cost.name].cost, pt)
 
         # Update the desired force.
-        assert len(pt.point.forces) == 1, (
-            "Only one end-effector force tracking reference is allowed."
+        assert self.frame_id in pt.point.forces, (
+            f"forces should contains key {self.frame_id}"
         )
-        assert len(pt.weights.w_forces) == 1, (
-            "Only one end-effector force tracking reference is allowed."
-        )
-        name, f_weight = next(iter(pt.weights.w_forces.items()))
+        f_weight = pt.weights.w_forces[self.frame_id][:3]
         if np.sum(np.abs(f_weight)) > 1e-9:
             dam.active_contact = True
             dam.with_force_cost = True
-            dam.f_des = pt.point.forces[name].linear[self.enabled_directions]
-            dam.f_weight = f_weight[:3][self.enabled_directions]
+            dam.f_des = pt.point.forces[self.frame_i].linear[self.enabled_directions]
+            dam.f_weight = f_weight[self.enabled_directions]
         else:
             dam.active_contact = False
             dam.with_force_cost = False
@@ -262,8 +259,8 @@ class OCPCrocoContactGeneric(OCPCrocoGeneric):
         return self._enabled_directions
 
     @property
-    def frame_name(self) -> str:
-        return self._data.running_model.differential.frame_name
+    def frame_id(self) -> str:
+        return self._data.running_model.differential.frame_id
 
     @property
     def oPc(self) -> npt.ArrayLike:

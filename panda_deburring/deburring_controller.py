@@ -3,6 +3,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+import numpy.typing as npt
 import pinocchio as pin
 import yaml
 from agimus_controller.factory.robot_model import RobotModelParameters, RobotModels
@@ -20,7 +21,10 @@ from agimus_controller.trajectory import (
     WeightedTrajectoryPoint,
 )
 from agimus_controller.warm_start_reference import WarmStartReference
-from agimus_controller_ros.ros_utils import mpc_debug_data_to_msg
+from agimus_controller_ros.ros_utils import (
+    mpc_debug_data_to_msg,
+    mpc_msg_to_weighted_traj_point,
+)
 from agimus_msgs.msg import MpcDebug, MpcInputArray
 from agimus_pytroller_py.agimus_pytroller_base import ControllerImplBase
 from ament_index_python.packages import get_package_share_directory
@@ -95,79 +99,27 @@ class ControllerImpl(ControllerImplBase):
         self._d_gains = cfg["d_gains"]
         self._q_init = None
 
+        self._publish_debug_data = cfg["ocp_params"]["use_debug_data"]
+
         self._first_call = True
+        self._ocp_res_is_none = True
 
     def mpc_input_cb(self, msg: MpcInputArray):
         for mpc_input in msg.inputs:
-            now = time.time_ns()
-
-            xyz_quat_pose = np.array(
-                [
-                    getattr(t, f)
-                    for t in (mpc_input.pose.position, mpc_input.pose.orientation)
-                    for f in "xyzw"
-                    if hasattr(t, f)
-                ],
-                dtype=np.float64,
-            )
-            motion_twist = pin.Motion(
-                linear=np.array([getattr(mpc_input.twist.linear, t) for t in "xyz"]),
-                angular=np.array([getattr(mpc_input.twist.angular, t) for t in "xyz"]),
-            )
-            force, torque = (
-                np.array([getattr(msg, f) for f in "xyz"], dtype=np.float64)
-                for msg in (mpc_input.force.force, mpc_input.force.torque)
-            )
-
-            traj_point = TrajectoryPoint(
-                time_ns=now,
-                robot_configuration=np.array(mpc_input.q, dtype=np.float64),
-                robot_velocity=np.array(mpc_input.qdot, dtype=np.float64),
-                robot_acceleration=np.array(mpc_input.qddot, dtype=np.float64),
-                robot_effort=np.array(mpc_input.robot_effort, dtype=np.float64),
-                forces={mpc_input.ee_frame_name: pin.Force(force, torque)},
-                end_effector_poses={
-                    mpc_input.ee_frame_name: pin.XYZQUATToSE3(xyz_quat_pose)
-                },
-                end_effector_velocities={mpc_input.ee_frame_name: motion_twist},
-            )
-
-            traj_weights = TrajectoryPointWeights(
-                w_robot_configuration=np.array(mpc_input.w_q, dtype=np.float64),
-                w_robot_velocity=np.array(mpc_input.w_qdot, dtype=np.float64),
-                w_robot_acceleration=np.array(mpc_input.w_qddot, dtype=np.float64),
-                w_robot_effort=np.array(mpc_input.w_robot_effort, dtype=np.float64),
-                w_forces={
-                    mpc_input.ee_frame_name: np.array(
-                        mpc_input.w_force, dtype=np.float64
-                    )
-                },
-                w_end_effector_poses={
-                    mpc_input.ee_frame_name: np.array(
-                        mpc_input.w_pose, dtype=np.float64
-                    )
-                },
-                w_end_effector_velocities={
-                    mpc_input.ee_frame_name: np.array(
-                        mpc_input.w_twist, dtype=np.float64
-                    )
-                },
-            )
             self.mpc.append_trajectory_point(
-                WeightedTrajectoryPoint(point=traj_point, weights=traj_weights)
+                mpc_msg_to_weighted_traj_point(mpc_input, time.time_ns())
             )
 
     def get_ocp_results(self) -> MpcDebug:
-        if self._in_pd_mode:
+        if self._ocp_res_is_none or not self._publish_debug_data:
             return MpcDebug()
 
-        self.mpc.mpc_debug_data.reference_id = 0
         return mpc_debug_data_to_msg(self.mpc.mpc_debug_data)
 
     def get_buffer_size(self) -> Int64:
         return Int64(data=len(self.mpc._buffer))
 
-    def on_update(self, state: np.array) -> np.array:
+    def on_update(self, state: npt.ArrayLike) -> npt.ArrayLike:
         now = time.time()
         nq = self._robot_models.robot_model.nq
         nv = self._robot_models.robot_model.nv
@@ -188,7 +140,7 @@ class ControllerImpl(ControllerImplBase):
         if self._first_call:
             self._q_init = q.copy()
             pin.computeJointJacobians(rmodel, self._robot_data, q)
-            frame_of_interest_id = rmodel.getFrameId(self.mpc._ocp.frame_name)
+            frame_of_interest_id = rmodel.getFrameId(self.mpc._ocp.frame_id)
             oMc = self._robot_data.oMf[frame_of_interest_id]
             oMc.translation += self.mpc._ocp.oPc
             force_world = oMc.actionInverse.T.dot(force)
@@ -230,10 +182,12 @@ class ControllerImpl(ControllerImplBase):
         ocp_res = self.mpc.run(initial_state=x0_traj_point, current_time_ns=now)
 
         if ocp_res is None:
+            self._ocp_res_is_none = True
             if self._in_pd_mode:
                 # Compute safety PD control
                 return (self._q_init - q) * self._p_gains - dq * self._d_gains
             return self._u_zeros
+        self._ocp_res_is_none = False
         self._in_pd_mode = False
 
         tau_g = pin.rnea(
