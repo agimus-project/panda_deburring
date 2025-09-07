@@ -46,10 +46,10 @@ ft_calibration_filter:
     calibration:
       measurement_frame:
         xyz: [0.0, 0.0, 0.0]
-        rpy: [0.088, 0.008, 0.088]
+        rpy: [-0.01298525, -0.01698205, 0.08738864]
       com:
-        xyz: [0.0, 0.0, -0.021]
-        mass: 1.063
+        xyz: [0.0, 0.001, -0.025]
+        mass: 0.14862544526369056
     ati_mini45/force.x:
       a: [-1.8403591709709755, 0.8521922521270615]
       b: [0.002958270289021522, 0.005916540578043044, 0.002958270289021522]
@@ -118,7 +118,7 @@ agimus_pytroller:
       topic_name: "~/mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["mpc_debug_data", "get_buffer_size"]
+    published_topics: ["get_buffer_size"]
     mpc_debug_data:
       topic_name: "~/mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
@@ -128,7 +128,7 @@ agimus_pytroller:
       topic_type: std_msgs/msg/Int64
       python_msg_getter_name: get_buffer_size
     pytroller_python_params:
-      p_gains: [5.0, 5.0, 5.0, 5.0, 1.0, 1.0, 1.0]
+      p_gains: [50.0, 50.0, 50.0, 50.0, 10.0, 10.0, 10.0]
       d_gains: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1]
       robot_model_params:
         moving_joint_names:
@@ -146,12 +146,12 @@ agimus_pytroller:
       ocp_definition_file: "package://panda_deburring/config/ocp_definition_file.yaml"
       dt_factor_n_seq:
         factors: [1]
-        n_steps: [15]
+        n_steps: [10]
       ocp_params:
         dt: 0.002
-        horizon_size: 15
-        solver_iters: 20
+        horizon_size: 10
+        solver_iters: 1
         callbacks: false
-        qp_iters: 100
+        qp_iters: 25
         use_debug_data: false
-        n_threads: 1
+        n_threads: 8
