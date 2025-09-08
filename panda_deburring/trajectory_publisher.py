@@ -99,7 +99,7 @@ class TrajectoryPublisher(Node):
         self._contact_counter = 0
         self._last_in_contact_state = False
 
-        self._gain_rate = (1 / 2.0) * self._params.ocp_dt
+        self._gain_rate = (1 / 5.0) * self._params.ocp_dt
 
         self._trajectory_offset = 0
         self._first_trajectory_point = None
@@ -258,25 +258,32 @@ class TrajectoryPublisher(Node):
         point.weights = self._current_gains
         point.point.id = seq
 
-        r = self._params.sanding_generator.circle.radius
         frequency = self._params.sanding_generator.circle.frequency
 
         t = seq * self._params.ocp_dt
+
+        angle = t / 10.0
+        if angle > np.deg2rad(10.0):
+            angle = np.deg2rad(5.0)
+
+        r = (-0.073915) * np.tan(angle)
+        z = (-0.073915) / np.cos(angle)
 
         # Pose increment
         omega = frequency * 2.0 * np.pi
         x = np.cos(t * omega) * r
         y = np.sin(t * omega) * r
-        circle = np.array([x, y, 0.0])
 
         # Velocity
         dx = -r * omega * np.sin(t * omega)
         dy = r * omega * np.cos(t * omega)
         dcircle = np.array([dx, dy, 0.0])
 
-        point.point.end_effector_poses[self._params.tool_frame_id].translation = (
-            np.array(self._params.get_entry(self._weights_name).frame_translation)
-            + circle
+        M_tool = point.point.end_effector_poses[self._params.tool_frame_id]
+        M_measure = pin.XYZQUATToSE3(np.array([x, y, z, 1.0, 0.0, 0.0, 0.0]))
+
+        point.point.end_effector_poses[self._params.measurement_frame_id] = (
+            M_tool * M_measure
         )
 
         point.point.end_effector_velocities[self._params.tool_frame_id].linear = dcircle
