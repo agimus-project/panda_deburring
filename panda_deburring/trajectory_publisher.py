@@ -90,6 +90,7 @@ class TrajectoryPublisher(Node):
         self._sequence_cnt = 0
         self._buffer_size = None
         self._in_contact = None
+        self._contact_counter = 0
         self._last_in_contact_state = False
 
         self._trajectory_offset = 0
@@ -121,7 +122,15 @@ class TrajectoryPublisher(Node):
         self._buffer_size = msg.data
 
     def _in_contact_cb(self, msg: Bool) -> None:
-        self._in_contact = msg.data
+        if self._in_contact is None:
+            self._in_contact = msg.data
+
+        if self._in_contact != msg.data:
+            self._contact_counter += 1
+
+        if self._contact_counter >= 500:
+            self._contact_counter = 0
+            self._in_contact = msg.data
 
     def _update_params(self, first_call: bool = False) -> None:
         """Updates values of dynamic parameters and updated dependent objects.
