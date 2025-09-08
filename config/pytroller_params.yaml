@@ -33,7 +33,7 @@ ft_calibration_filter:
       - agimus_pytroller/ati_mini45/torque.y
       - agimus_pytroller/ati_mini45/torque.z
     measurement_frame_id: ati_mini45_measurement_reference
-    bias_measurement_samples: 500
+    bias_measurement_samples: 50
     gravity_vector: [0.0, 0.0, -9.81]
     invert_forces: true
     contact_detection:
@@ -118,7 +118,7 @@ agimus_pytroller:
       topic_name: "~/mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["get_buffer_size", "mpc_debug_data"]
+    published_topics: ["get_buffer_size"]
     mpc_debug_data:
       topic_name: "~/mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
@@ -150,8 +150,8 @@ agimus_pytroller:
       ocp_params:
         dt: 0.002
         horizon_size: 10
-        solver_iters: 1
+        solver_iters: 3
         callbacks: false
         qp_iters: 25
-        use_debug_data: true
+        use_debug_data: false
         n_threads: 8

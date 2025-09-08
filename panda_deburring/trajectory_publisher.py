@@ -10,6 +10,7 @@ from agimus_controller.trajectory import (
     TrajectoryPoint,
     TrajectoryPointWeights,
     WeightedTrajectoryPoint,
+    interpolate_weights,
 )
 from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
@@ -86,12 +87,19 @@ class TrajectoryPublisher(Node):
 
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
         self._weights_name = "initialize"
+        self._previous_gains = None
+        self._current_gains = None
+        self._next_gains = None
+        self._gain_scheduler = 0.0
+
         self._update_params(True)
         self._sequence_cnt = 0
         self._buffer_size = None
         self._in_contact = None
         self._contact_counter = 0
         self._last_in_contact_state = False
+
+        self._gain_rate = (1 / 2.0) * self._params.ocp_dt
 
         self._trajectory_offset = 0
         self._first_trajectory_point = None
@@ -128,7 +136,7 @@ class TrajectoryPublisher(Node):
         if self._in_contact != msg.data:
             self._contact_counter += 1
 
-        if self._contact_counter >= 500:
+        if self._contact_counter >= 50:
             self._contact_counter = 0
             self._in_contact = msg.data
 
@@ -181,14 +189,15 @@ class TrajectoryPublisher(Node):
         self.get_logger().warn(f"{stage.w_desired_force}")
 
         traj_weights = TrajectoryPointWeights(
-            w_robot_configuration=stage.w_robot_configuration,
-            w_robot_velocity=stage.w_robot_velocity,
-            w_robot_acceleration=[0.0] * len(stage.w_robot_configuration),
-            w_robot_effort=stage.w_robot_effort,
+            w_robot_configuration=np.asarray(stage.w_robot_configuration),
+            w_robot_velocity=np.asarray(stage.w_robot_velocity),
+            w_robot_acceleration=np.zeros_like(stage.w_robot_configuration),
+            w_robot_effort=np.asarray(stage.w_robot_effort),
+            w_collision_avoidance=0.0,
             w_forces={
                 measurement_frame_id: np.concatenate(
                     (
-                        np.asarray(stage.w_desired_force),
+                        np.array(stage.w_desired_force),
                         np.zeros(3),
                     )
                 )
@@ -217,6 +226,13 @@ class TrajectoryPublisher(Node):
             },
         )
 
+        if self._previous_gains is None:
+            self._previous_gains = copy.deepcopy(traj_weights)
+        else:
+            self._previous_gains = self._current_gains
+        self._next_gains = copy.deepcopy(traj_weights)
+        self._gain_scheduler = 0.0
+
         self._base_trajectory_point = WeightedTrajectoryPoint(
             point=traj_point, weights=traj_weights
         )
@@ -230,7 +246,16 @@ class TrajectoryPublisher(Node):
         Returns:
             agimus_msgs.msg.MpcInput: ROS message with MPC input.
         """
+        self._current_gains = interpolate_weights(
+            self._previous_gains, self._next_gains, self._gain_scheduler
+        )
+        self._gain_scheduler += self._gain_rate
+        self._gain_scheduler = (
+            1.0 if self._gain_scheduler >= 1.0 else self._gain_scheduler
+        )
+
         point = copy.deepcopy(self._base_trajectory_point)
+        point.weights = self._current_gains
         point.point.id = seq
 
         r = self._params.sanding_generator.circle.radius
