@@ -81,7 +81,7 @@ class TrajectoryPublisher(Node):
 
         self._measurement_offset = pin.SE3(
             pin.rpy.rpyToMatrix(np.deg2rad(np.array([180.0, 0.0, 120.0]))),
-            np.array([0.000, 0.000, 0.074]),
+            np.array([0.000, 0.000, -0.073915]),
         )
 
         self._base_trajectory_point: WeightedTrajectoryPoint | None = None
@@ -98,23 +98,23 @@ class TrajectoryPublisher(Node):
         self._rot_vel = np.zeros(3)
         self._motion_phase = MotionPhases.wait_for_data
 
+        rate = 1.0 / self._params.update_frequency
+
         self._marker_base = Marker(
-            header=Header(frame_id="world"),
+            header=Header(frame_id="fer_link0"),
             ns="deburring",
             type=Marker.SPHERE,
             action=Marker.ADD,
             scale=Vector3(x=0.01, y=0.01, z=0.01),
             color=ColorRGBA(**dict(zip("rgba", [1.0, 0.0, 0.0, 1.0]))),
-            lifetime=Duration(seconds=self._params.rate * 1.25).to_msg(),
+            lifetime=Duration(seconds=rate * 1.25).to_msg(),
         )
 
         self._generator_cb = {"sanding_generator": self._circle_generator}[
             self._params.trajectory_generator_name
         ]
 
-        self._timer = self.create_timer(
-            1.0 / self._params.update_frequency, self._publish_mpc_input_cb
-        )
+        self._timer = self.create_timer(rate, self._publish_mpc_input_cb)
         self.get_logger().info("Node started.")
 
     def _buffer_size_cb(self, msg: Int64) -> None:
@@ -187,13 +187,13 @@ class TrajectoryPublisher(Node):
             w_end_effector_poses={
                 tool_frame_id: np.concatenate(
                     (
-                        np.asarray(stage.w_frame_translation),
+                        np.asarray(stage.w_tool_translation),
                         np.asarray(stage.w_frame_rotation),
                     )
                 ),
                 measurement_frame_id: np.concatenate(
                     (
-                        np.asarray(stage.w_frame_translation),
+                        np.asarray(stage.w_measurement_translation),
                         np.asarray(stage.w_frame_rotation),
                     )
                 ),
@@ -410,6 +410,9 @@ class TrajectoryPublisher(Node):
                 point.point.end_effector_poses[self._params.tool_frame_id] = (
                     pin.SE3ToXYZQUAT(target)
                 )
+                point.point.end_effector_poses[self._params.measurement_frame_id] = (
+                    pin.SE3ToXYZQUAT(target * self._measurement_offset)
+                )
                 inputs.append(weighted_traj_point_to_mpc_msg(point))
             mpc_input_array = MpcInputArray(inputs=inputs)
 
@@ -436,8 +439,21 @@ class TrajectoryPublisher(Node):
             )
             self._sequence_cnt = end_seq
 
-        mpc_input_array.header.stamp = self.get_clock().now().to_msg()
+        now = self.get_clock().now().to_msg()
+        mpc_input_array.header.stamp = now
         self._mpc_input_publisher.publish(mpc_input_array)
+
+        if len(mpc_input_array.inputs) > 0:
+            markers = MarkerArray(
+                markers=[copy.deepcopy(self._marker_base) for _ in range(2)]
+            )
+            markers.markers[0].id = 0
+            markers.markers[0].header.stamp = now
+            markers.markers[0].pose = mpc_input_array.inputs[-1].ee_inputs[0].pose
+            markers.markers[1].id = 1
+            markers.markers[1].header.stamp = now
+            markers.markers[1].pose = mpc_input_array.inputs[-1].ee_inputs[1].pose
+            self._deburring_markers_pub.publish(markers)
 
 
 def main(args=None):

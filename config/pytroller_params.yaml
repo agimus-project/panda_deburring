@@ -118,7 +118,7 @@ agimus_pytroller:
       topic_name: "~/mpc_input"
       topic_type: agimus_msgs/msg/MpcInputArray
       python_function_name: mpc_input_cb
-    published_topics: ["get_buffer_size"]
+    published_topics: ["get_buffer_size", "mpc_debug_data"]
     mpc_debug_data:
       topic_name: "~/mpc_debug"
       topic_type: agimus_msgs/msg/MpcDebug
@@ -153,5 +153,5 @@ agimus_pytroller:
         solver_iters: 1
         callbacks: false
         qp_iters: 25
-        use_debug_data: false
+        use_debug_data: true
         n_threads: 8

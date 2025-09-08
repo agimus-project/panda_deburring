@@ -117,7 +117,13 @@ trajectory_publisher:
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
-    w_frame_translation:
+    w_tool_translation:
+      type: double_array
+      description: "Weights associated to pose of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+    w_measurement_translation:
       type: double_array
       description: "Weights associated to pose of the `frame_of_interest`."
       validation:

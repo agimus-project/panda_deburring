@@ -7,6 +7,8 @@ Panels:
         - /RobotModel1/Description Topic1
         - /TF1
         - /TF1/Frames1
+        - /Wrench1
+        - /MarkerArray1
       Splitter Ratio: 0.5
     Tree Height: 820
   - Class: rviz_common/Selection
@@ -65,6 +67,10 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+        base:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         camera_bottom_screw_frame:
           Alpha: 1
           Show Axes: false
@@ -115,6 +121,7 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
+          Value: true
         fer_link0:
           Alpha: 1
           Show Axes: false
@@ -160,10 +167,6 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
         fer_ref_camera_link:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
-        world:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -182,6 +185,8 @@ Visualization Manager:
         All Enabled: false
         ati_mini45_measurement_reference:
           Value: true
+        base:
+          Value: true
         camera_bottom_screw_frame:
           Value: false
         camera_color_frame:
@@ -226,15 +231,13 @@ Visualization Manager:
           Value: false
         fer_ref_camera_link:
           Value: false
-        world:
-          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        world:
+        base:
           fer_link0:
             fer_link1:
               fer_link2:
@@ -308,7 +311,7 @@ Visualization Manager:
       Arrow Width: 0.5
       Class: rviz_default_plugins/Wrench
       Enabled: true
-      Force Arrow Scale: 2
+      Force Arrow Scale: 0.10000000149011612
       Force Color: 204; 51; 51
       History Length: 1
       Name: Wrench
@@ -319,8 +322,20 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /ft_calibration_filter/wrench
-      Torque Arrow Scale: 2
+      Torque Arrow Scale: 0.10000000149011612
       Torque Color: 204; 204; 51
+      Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        deburring: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /deburring_markers
       Value: true
   Enabled: true
   Global Options:
@@ -368,7 +383,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 0.9496965408325195
+      Distance: 2.9510014057159424
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -383,10 +398,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: -0.024601787328720093
+      Pitch: 0.34539833664894104
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.022246837615967
+      Yaw: 5.142246246337891
     Saved: ~
 Window Geometry:
   Displays:
