@@ -73,7 +73,7 @@ agimus_pytroller:
     type: agimus_pytroller/AgimusPytroller
     python_module: panda_deburring.deburring_controller
     python_downsample_factor: 2
-    error_on_no_data: true
+    error_on_no_data: false
     interpolate_trajectory: true
     input_interfaces:
       - fer_joint1/position
@@ -130,6 +130,9 @@ agimus_pytroller:
     pytroller_python_params:
       p_gains: [50.0, 50.0, 50.0, 50.0, 10.0, 10.0, 10.0]
       d_gains: [0.5, 0.5, 0.5, 0.5, 0.1, 0.1, 0.1]
+      cost_plotter:
+        use_cost_plotter: true
+        cost_plotter_url: 127.0.0.1:2137
       robot_model_params:
         moving_joint_names:
           - fer_joint1
@@ -146,12 +149,12 @@ agimus_pytroller:
       ocp_definition_file: "package://panda_deburring/config/ocp_definition_file.yaml"
       dt_factor_n_seq:
         factors: [1]
-        n_steps: [10]
+        n_steps: [60]
       ocp_params:
         dt: 0.002
-        horizon_size: 10
-        solver_iters: 3
-        callbacks: false
-        qp_iters: 25
+        horizon_size: 60
+        solver_iters: 20
+        callbacks: true
+        qp_iters: 50
         use_debug_data: false
         n_threads: 8

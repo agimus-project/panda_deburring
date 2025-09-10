@@ -2,8 +2,8 @@ running_model:
   class: IAMSoftContactAugmented
   differential:
     class: DAMSoftContactAugmentedFwdDynamics
-    Kp: [3000, 3000, 3000]
-    Kv: [500, 500, 500]
+    Kp: [1000, 1000, 1000]
+    Kv: [100, 100, 100]
     frame_id: ati_mini45_measurement_reference
     oPc: [0.0, 0.0, -0.073915]
     with_gravity_torque_reg: True
@@ -71,11 +71,11 @@ terminal_model:
   class: IAMSoftContactAugmented
   differential:
     class: DAMSoftContactAugmentedFwdDynamics
-    Kp: [3000, 3000, 3000]
-    Kv: [500, 500, 500]
+    Kp: [1000, 1000, 1000]
+    Kv: [100, 100, 100]
     frame_id: ati_mini45_measurement_reference
     oPc: [0.0, 0.0, -0.073915]
-    with_gravity_torque_reg: True
+    with_gravity_torque_reg: False
     enabled_directions: [True, True, True]
     ref: LOCAL_WORLD_ALIGNED
     cost_ref: LOCAL_WORLD_ALIGNED

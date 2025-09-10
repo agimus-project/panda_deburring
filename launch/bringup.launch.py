@@ -1,6 +1,7 @@
 from agimus_demos_common.launch_utils import (
     generate_default_franka_args,
     generate_include_launch,
+    get_use_sim_time,
 )
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -60,7 +61,7 @@ def launch_setup(
         executable="trajectory_publisher",
         name="trajectory_publisher_node",
         output="screen",
-        parameters=[trajectory_publisher_params],
+        parameters=[get_use_sim_time(), trajectory_publisher_params],
     )
 
     return [franka_robot_launch, trajectory_publisher_node]

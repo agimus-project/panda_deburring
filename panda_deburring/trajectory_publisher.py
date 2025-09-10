@@ -99,7 +99,7 @@ class TrajectoryPublisher(Node):
         self._contact_counter = 0
         self._last_in_contact_state = False
 
-        self._gain_rate = (1 / 5.0) * self._params.ocp_dt
+        self._gain_rate = (1 / 3.0) * self._params.ocp_dt
 
         self._trajectory_offset = 0
         self._first_trajectory_point = None
@@ -115,7 +115,7 @@ class TrajectoryPublisher(Node):
             type=Marker.SPHERE,
             action=Marker.ADD,
             scale=Vector3(x=0.01, y=0.01, z=0.01),
-            color=ColorRGBA(**dict(zip("rgba", [1.0, 0.0, 0.0, 1.0]))),
+            color=ColorRGBA(**dict(zip("rgba", [0.0, 0.0, 0.0, 1.0]))),
             lifetime=Duration(seconds=rate * 1.25).to_msg(),
         )
 
@@ -262,9 +262,9 @@ class TrajectoryPublisher(Node):
 
         t = seq * self._params.ocp_dt
 
-        angle = t / 10.0
-        if angle > np.deg2rad(10.0):
-            angle = np.deg2rad(5.0)
+        angle = t / 5.0
+        if angle > np.deg2rad(20):
+            angle = np.deg2rad(20)
 
         r = (-0.073915) * np.tan(angle)
         z = (-0.073915) / np.cos(angle)
@@ -488,12 +488,27 @@ class TrajectoryPublisher(Node):
             markers = MarkerArray(
                 markers=[copy.deepcopy(self._marker_base) for _ in range(2)]
             )
+            ee_imnput_frames = [
+                ee_input.frame_id for ee_input in mpc_input_array.inputs[-1].ee_inputs
+            ]
+            # Tool frame - red
             markers.markers[0].id = 0
             markers.markers[0].header.stamp = now
-            markers.markers[0].pose = mpc_input_array.inputs[-1].ee_inputs[0].pose
+            markers.markers[0].color.r = 1.0
+            markers.markers[0].pose = (
+                mpc_input_array.inputs[-1]
+                .ee_inputs[ee_imnput_frames.index(self._params.tool_frame_id)]
+                .pose
+            )
+            # Measurement frame - green
             markers.markers[1].id = 1
             markers.markers[1].header.stamp = now
-            markers.markers[1].pose = mpc_input_array.inputs[-1].ee_inputs[1].pose
+            markers.markers[1].color.g = 1.0
+            markers.markers[1].pose = (
+                mpc_input_array.inputs[-1]
+                .ee_inputs[ee_imnput_frames.index(self._params.measurement_frame_id)]
+                .pose
+            )
             self._deburring_markers_pub.publish(markers)
 
 
