@@ -9,7 +9,8 @@ Panels:
         - /TF1/Frames1
         - /Wrench1
         - /MarkerArray1
-      Splitter Ratio: 0.5
+        - /Pose1
+      Splitter Ratio: 0.8176470398902893
     Tree Height: 820
   - Class: rviz_common/Selection
     Name: Selection
@@ -67,10 +68,6 @@ Visualization Manager:
           Alpha: 1
           Show Axes: false
           Show Trail: false
-        base:
-          Alpha: 1
-          Show Axes: false
-          Show Trail: false
         camera_bottom_screw_frame:
           Alpha: 1
           Show Axes: false
@@ -167,6 +164,10 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
         fer_ref_camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        world:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -184,9 +185,7 @@ Visualization Manager:
       Frames:
         All Enabled: false
         ati_mini45_measurement_reference:
-          Value: true
-        base:
-          Value: true
+          Value: false
         camera_bottom_screw_frame:
           Value: false
         camera_color_frame:
@@ -210,7 +209,7 @@ Visualization Manager:
         fer_ati_mini45_with_camera:
           Value: false
         fer_ati_mini45_with_camera_tool:
-          Value: false
+          Value: true
         fer_link0:
           Value: false
         fer_link1:
@@ -231,13 +230,15 @@ Visualization Manager:
           Value: false
         fer_ref_camera_link:
           Value: false
+        world:
+          Value: true
       Marker Scale: 1
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        base:
+        world:
           fer_link0:
             fer_link1:
               fer_link2:
@@ -337,6 +338,26 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /deburring_markers
       Value: true
+    - Alpha: 1
+      Axes Length: 0.10000000149011612
+      Axes Radius: 0.009999999776482582
+      Class: rviz_default_plugins/Pose
+      Color: 255; 25; 0
+      Enabled: true
+      Head Length: 0.30000001192092896
+      Head Radius: 0.10000000149011612
+      Name: Pose
+      Shaft Length: 1
+      Shaft Radius: 0.05000000074505806
+      Shape: Axes
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /target_pose
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -383,25 +404,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 2.9510014057159424
+      Distance: 0.9509304165840149
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.126114621758461
-        Y: -0.0822802260518074
-        Z: 0.23482640087604523
+        X: 0.3215807378292084
+        Y: 0.47437697649002075
+        Z: 0.11402907222509384
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.34539833664894104
+      Pitch: 0.1753983348608017
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.142246246337891
+      Yaw: 5.52724552154541
     Saved: ~
 Window Geometry:
   Displays:

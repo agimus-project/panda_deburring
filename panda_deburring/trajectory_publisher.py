@@ -14,7 +14,7 @@ from agimus_controller.trajectory import (
 )
 from agimus_controller_ros.ros_utils import weighted_traj_point_to_mpc_msg
 from agimus_msgs.msg import MpcInput, MpcInputArray
-from geometry_msgs.msg import Point, Pose, Quaternion, Vector3
+from geometry_msgs.msg import Point, Pose, PoseStamped, Quaternion, Vector3
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
@@ -48,6 +48,12 @@ class TrajectoryPublisher(Node):
                 depth=1000,
                 reliability=ReliabilityPolicy.BEST_EFFORT,
             ),
+        )
+
+        self._mpc_target_pose = self.create_publisher(
+            PoseStamped,
+            "target_pose",
+            10,
         )
 
         self._deburring_markers_pub = self.create_publisher(
@@ -106,6 +112,7 @@ class TrajectoryPublisher(Node):
         self._robot_start_pose = pin.SE3()
         self._rot_vel = np.zeros(3)
         self._motion_phase = MotionPhases.wait_for_data
+        self._circle_cnt = 0
 
         rate = 1.0 / self._params.update_frequency
 
@@ -260,33 +267,45 @@ class TrajectoryPublisher(Node):
 
         frequency = self._params.sanding_generator.circle.frequency
 
-        t = seq * self._params.ocp_dt
+        self._circle_cnt += 1
+        t = self._circle_cnt * self._params.ocp_dt
 
-        angle = t / 5.0
-        if angle > np.deg2rad(20):
-            angle = np.deg2rad(20)
+        angle = t / 10.0
+        if angle > np.deg2rad(7.5):
+            angle = np.deg2rad(7.5)
 
-        r = (-0.073915) * np.tan(angle)
-        z = (-0.073915) / np.cos(angle)
-
-        # Pose increment
         omega = frequency * 2.0 * np.pi
-        x = np.cos(t * omega) * r
-        y = np.sin(t * omega) * r
-
-        # Velocity
-        dx = -r * omega * np.sin(t * omega)
-        dy = r * omega * np.cos(t * omega)
-        dcircle = np.array([dx, dy, 0.0])
+        R_1 = pin.SE3(pin.rpy.rpyToMatrix(np.array([0.0, 0.0, omega * t])), np.zeros(3))
+        R_2 = pin.SE3(pin.rpy.rpyToMatrix(np.array([angle, 0.0, 0.0])), np.zeros(3))
 
         M_tool = point.point.end_effector_poses[self._params.tool_frame_id]
-        M_measure = pin.XYZQUATToSE3(np.array([x, y, z, 1.0, 0.0, 0.0, 0.0]))
+        tans = M_tool.translation.copy()
 
-        point.point.end_effector_poses[self._params.measurement_frame_id] = (
-            M_tool * M_measure
-        )
+        M_tool.translation = np.zeros(3)
+        point.point.end_effector_poses[self._params.tool_frame_id] = R_1 * R_2 * M_tool
+        point.point.end_effector_poses[self._params.tool_frame_id].translation = tans
 
-        point.point.end_effector_velocities[self._params.tool_frame_id].linear = dcircle
+        # r = (-0.073915) * np.tan(angle)
+        # z = (-0.073915) / np.cos(angle)
+
+        # # Pose increment
+        # omega = frequency * 2.0 * np.pi
+        # x = np.cos(t * omega) * r
+        # y = np.sin(t * omega) * r
+
+        # # Velocity
+        # dx = -r * omega * np.sin(t * omega)
+        # dy = r * omega * np.cos(t * omega)
+        # dcircle = np.array([dx, dy, 0.0])
+
+        # M_tool = point.point.end_effector_poses[self._params.tool_frame_id]
+        # M_measure = pin.XYZQUATToSE3(np.array([x, y, z, 1.0, 0.0, 0.0, 0.0]))
+
+        # point.point.end_effector_poses[self._params.measurement_frame_id] = (
+        #     M_tool * M_measure
+        # )
+
+        # point.point.end_effector_velocities[self._params.tool_frame_id].linear = dcircle
 
         return point
 
@@ -510,6 +529,17 @@ class TrajectoryPublisher(Node):
                 .pose
             )
             self._deburring_markers_pub.publish(markers)
+            self._mpc_target_pose.publish(
+                PoseStamped(
+                    header=Header(
+                        stamp=self.get_clock().now().to_msg(),
+                        frame_id="fer_link0",
+                    ),
+                    pose=mpc_input_array.inputs[-1]
+                    .ee_inputs[ee_imnput_frames.index(self._params.tool_frame_id)]
+                    .pose,
+                )
+            )
 
 
 def main(args=None):

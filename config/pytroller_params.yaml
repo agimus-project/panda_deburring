@@ -73,7 +73,7 @@ agimus_pytroller:
     type: agimus_pytroller/AgimusPytroller
     python_module: panda_deburring.deburring_controller
     python_downsample_factor: 2
-    error_on_no_data: false
+    error_on_no_data: true
     interpolate_trajectory: true
     input_interfaces:
       - fer_joint1/position
@@ -149,12 +149,12 @@ agimus_pytroller:
       ocp_definition_file: "package://panda_deburring/config/ocp_definition_file.yaml"
       dt_factor_n_seq:
         factors: [1]
-        n_steps: [60]
+        n_steps: [10]
       ocp_params:
         dt: 0.002
-        horizon_size: 60
-        solver_iters: 20
+        horizon_size: 10
+        solver_iters: 3
         callbacks: true
-        qp_iters: 50
+        qp_iters: 25
         use_debug_data: false
         n_threads: 8

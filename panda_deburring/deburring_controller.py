@@ -215,7 +215,7 @@ class ControllerImpl(ControllerImplBase):
         return ocp_res.feed_forward_terms[0] - tau_g
 
     def on_post_update(self) -> None:
-        if self._use_cost_plotter and self._iteration_counter % 50:
+        if self._use_cost_plotter and self._iteration_counter % 100:
             self._cost_plotter_server.send(
                 self.mpc._ocp._solver.problem, self._iteration_counter
             )
