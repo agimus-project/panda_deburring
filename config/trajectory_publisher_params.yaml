@@ -56,7 +56,7 @@ trajectory_publisher_node:
       w_tool_translation: [0.0, 0.0, 0.0]
       w_frame_angular_velocity: [0.0, 0.0, 0.0]
       w_frame_linear_velocity: [0.0, 0.0, 0.0]
-      w_desired_force: [0.000008, 0.000008, 0.000008]
+      w_desired_force: [0.00001, 0.00001, 0.00001]
     sanding_generator:
       circle:
         radius: 0.0000000000005
