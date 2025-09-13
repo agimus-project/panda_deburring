@@ -91,8 +91,8 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
         fid = data.state.pinocchio.getFrameId(self.frame_id)
         dam_cls, extra_kwargs = self._dam_cls_and_kwargs
 
+        manager = crocoddyl.ConstraintModelManager(data.state)
         if self.constraints is not None:
-            manager = crocoddyl.ConstraintModelManager(data.state)
             for constraint in self.constraints:
                 c = constraint.constraint.build(data)
                 manager.addConstraint(constraint.name, c, constraint.active)
@@ -147,15 +147,47 @@ class DAMSoftContactAugmentedFwdDynamics(DifferentialActionModel):
 @dataclasses.dataclass
 class IAMSoftContactAugmented(IntegratedActionModelAbstract):
     class_: T.ClassVar[str] = "IAMSoftContactAugmented"
+    force_ub: T.Optional[npt.NDArray[np.float64]] = None
+    force_lb: T.Optional[npt.NDArray[np.float64]] = None
 
     def __post_init__(self):
         assert force_feedback_mpc is not None, "Module force_feedback_mpc not found"
 
+    def update(self, data, obj, pt: WeightedTrajectoryPoint):
+        self.differential.update(data, obj.differential, pt)
+
+        if len(obj.differential.constraints.constraints) > 0:
+            g_lb = np.concatenate(
+                [
+                    c.data().constraint.lb
+                    for c in obj.differential.constraints.constraints
+                ]
+            )
+            g_ub = np.concatenate(
+                [
+                    c.data().constraint.ub
+                    for c in obj.differential.constraints.constraints
+                ]
+            )
+            obj.g_lb = np.concatenate((self.force_lb, g_lb))
+            obj.g_ub = np.concatenate((self.force_ub, g_ub))
+
     def build(self, data: BuildData):
         differential = self.differential.build(data)
-        return force_feedback_mpc.IAMSoftContactAugmented(
+        iam = force_feedback_mpc.IAMSoftContactAugmented(
             differential, self.step_time, self.with_cost_residual
         )
+        # If None use default
+        if self.force_ub is None:
+            self.force_ub = iam.g_ub[:3]
+        else:
+            self.force_ub = np.array(self.force_ub)
+
+        if self.force_lb is None:
+            self.force_lb = iam.g_lb[:3]
+        else:
+            self.force_lb = np.array(self.force_lb)
+        return iam
 
 
 class OCPCrocoContactGeneric(OCPCrocoGeneric):
