@@ -157,20 +157,8 @@ class IAMSoftContactAugmented(IntegratedActionModelAbstract):
         self.differential.update(data, obj.differential, pt)
 
         if len(obj.differential.constraints.constraints) > 0:
-            g_lb = np.concatenate(
-                [
-                    c.data().constraint.lb
-                    for c in obj.differential.constraints.constraints
-                ]
-            )
-            g_ub = np.concatenate(
-                [
-                    c.data().constraint.ub
-                    for c in obj.differential.constraints.constraints
-                ]
-            )
-            obj.g_lb = np.concatenate((self.force_lb, g_lb))
-            obj.g_ub = np.concatenate((self.force_ub, g_ub))
+            obj.g_lb = np.concatenate((obj.differential.g_lb, self.force_lb))
+            obj.g_ub = np.concatenate((obj.differential.g_ub, self.force_ub))
 
     def build(self, data: BuildData):
         differential = self.differential.build(data)
@@ -179,12 +167,12 @@ class IAMSoftContactAugmented(IntegratedActionModelAbstract):
         )
         # If None use default
         if self.force_ub is None:
-            self.force_ub = iam.g_ub[:3]
+            self.force_ub = iam.g_ub[-3:]
         else:
             self.force_ub = np.array(self.force_ub)
 
         if self.force_lb is None:
-            self.force_lb = iam.g_lb[:3]
+            self.force_lb = iam.g_lb[-3:]
         else:
             self.force_lb = np.array(self.force_lb)
         return iam
