@@ -39,14 +39,14 @@ from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
     WarmStartShiftPreviousSolutionContact,
 )
 
-try:
-    import crocoddyl_plotter
-except:
-    pass
+# try:
+#     import crocoddyl_plotter
+# except:
+#     pass
 
 
 class ControllerImpl(ControllerImplBase):
-    def __init__(self, robot_description: str) -> None:
+    def __init__(self, robot_description: str, environment_description: str) -> None:
         self._topic_map = {}
         package_share_directory = Path(get_package_share_directory("panda_deburring"))
         config_file = package_share_directory / "config" / "pytroller_params.yaml"
@@ -67,7 +67,9 @@ class ControllerImpl(ControllerImplBase):
                     sub_cfg[key] = np.asarray(sub_cfg[key], dtype=np.float64)
 
         robot_params = RobotModelParameters(
-            robot_urdf=robot_description, **cfg["robot_model_params"]
+            robot_urdf=robot_description,
+            env_urdf=environment_description,
+            **cfg["robot_model_params"],
         )
 
         self._robot_models = RobotModels(robot_params)
@@ -94,7 +96,7 @@ class ControllerImpl(ControllerImplBase):
         self.mpc.setup(ocp=ocp, warm_start=ws_shift, buffer=traj_buffer)
 
         self._external_forces = [
-            pin.Force() for _ in range(self._robot_models.robot_model.nq + 1)
+            pin.Force(np.zeros(6)) for _ in range(self._robot_models.robot_model.nq + 1)
         ]
         self._nv_zeros = np.zeros(self._robot_models.robot_model.nv)
         self._u_zeros = np.zeros(self._robot_models.robot_model.nv)
@@ -109,13 +111,13 @@ class ControllerImpl(ControllerImplBase):
         self._first_call = True
         self._ocp_res_is_none = True
 
-        plotter_cfg = cfg["cost_plotter"]
-        if plotter_cfg["use_cost_plotter"]:
-            self._use_cost_plotter = True
-            self._iteration_counter = 0
-            self._cost_plotter_server = crocoddyl_plotter.CrocoddylPlotterServer(
-                plotter_cfg["cost_plotter_url"]
-            )
+        # plotter_cfg = cfg["cost_plotter"]
+        # if plotter_cfg["use_cost_plotter"]:
+        #     self._use_cost_plotter = True
+        #     self._iteration_counter = 0
+        #     self._cost_plotter_server = crocoddyl_plotter.CrocoddylPlotterServer(
+        #         plotter_cfg["cost_plotter_url"]
+        #     )
 
     def mpc_input_cb(self, msg: MpcInputArray):
         for mpc_input in msg.inputs:
@@ -215,9 +217,9 @@ class ControllerImpl(ControllerImplBase):
         return ocp_res.feed_forward_terms[0] - tau_g
 
     def on_post_update(self) -> None:
-        if self._use_cost_plotter and self._iteration_counter % 100:
-            self._cost_plotter_server.send(
-                self.mpc._ocp._solver.problem, self._iteration_counter
-            )
-        self._iteration_counter += 1
+        # if self._use_cost_plotter and self._iteration_counter % 100:
+        #     self._cost_plotter_server.send(
+        #         self.mpc._ocp._solver.problem, self._iteration_counter
+        #     )
+        # self._iteration_counter += 1
         self.mpc.update_references()
