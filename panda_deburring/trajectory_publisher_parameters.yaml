@@ -9,6 +9,12 @@ trajectory_publisher:
     read_only: true
     validation:
       gt<>: [0.0]
+  ocp_dt:
+    type: double
+    description: "Time step [s] of OPC subscribing to the message."
+    read_only: true
+    validation:
+      gt<>: [0.0]
   n_buffer_points:
     type: int
     description: "Number of time points sent at once to the MPC buffer."
@@ -16,12 +22,51 @@ trajectory_publisher:
     read_only: true
     validation:
       gt<>: [0]
-  frame_of_interest:
+  tool_frame_id:
     type: string
     description: "Name of a frame associated to contact point."
     validation:
       not_empty<>: []
-  initial_targets:
+  measurement_frame_id:
+    type: string
+    description: "Name of a frame associated to contact point."
+    validation:
+      not_empty<>: []
+  robot_base_frame:
+    type: string
+    description: "Robot base frame used to compute pose of the end effector."
+    validation:
+      not_empty<>: []
+  initialization:
+    max_linear_velocity:
+      type: double
+      description: "Maximum linear velocity [m/s] of the end effector."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+    max_angular_velocity:
+      type: double
+      description: "Maximum linear angular [rad/s] of the end effector."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+    pose_tolerance:
+      type: double
+      description: "Final pose tolerance [m]."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+    rot_tolerance:
+      type: double
+      description: "Final rotation tolerance [rad]."
+      read_only: true
+      validation:
+        gt<>: [0.0]
+  stages:
+    type: string_array
+    default_value: ["initialize", "seek_contact", "in_contact"]
+    description: "List of names associated to different phases."
+  __map_stages:
     robot_configuration:
       type: double_array
       description: "Robot joint configuration [rad] used for state regularization."
@@ -47,55 +92,60 @@ trajectory_publisher:
       type: double_array
       description: "Desired force [N] applied by `frame_of_interest`."
       validation:
-        fixed_size<>: [6]
-  weights:
-    robot_configuration:
+        fixed_size<>: [3]
+    w_robot_configuration:
       type: double_array
       description: "Weights associated to regularization around desired robot configuration."
       validation:
         not_empty<>: []
         lower_element_bounds<>: [0.0]
-    robot_velocity:
+    w_robot_velocity:
       type: double_array
       description: "Weights associated to regularization around desired robot velocity."
       validation:
         not_empty<>: []
         lower_element_bounds<>: [0.0]
-    robot_effort:
+    w_robot_effort:
       type: double_array
       description: "Weights associated to regularization around gravity compensation torque."
       validation:
         not_empty<>: []
         lower_element_bounds<>: [0.0]
-    frame_rotation:
+    w_frame_rotation:
       type: double_array
       description: "Weights associated to rotation of the `frame_of_interest`."
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
-    frame_translation:
+    w_tool_translation:
       type: double_array
       description: "Weights associated to pose of the `frame_of_interest`."
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
-    frame_angular_velocity:
+    w_measurement_translation:
+      type: double_array
+      description: "Weights associated to pose of the `frame_of_interest`."
+      validation:
+        fixed_size<>: [3]
+        lower_element_bounds<>: [0.0]
+    w_frame_angular_velocity:
       type: double_array
       description: "Weights associated to angular velocity of the `frame_of_interest`."
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
-    frame_linear_velocity:
+    w_frame_linear_velocity:
       type: double_array
       description: "Weights associated to linear velocity of the `frame_of_interest`."
       validation:
         fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
-    desired_force:
+    w_desired_force:
       type: double_array
       description: "Weights associated to force applied by `frame_of_interest`."
       validation:
-        fixed_size<>: [6]
+        fixed_size<>: [3]
         lower_element_bounds<>: [0.0]
   sanding_generator:
     circle:
