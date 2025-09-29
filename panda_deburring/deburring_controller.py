@@ -39,10 +39,10 @@ from panda_deburring.warm_start_shift_previous_solution_force_feedback import (
     WarmStartShiftPreviousSolutionContact,
 )
 
-# try:
-#     import crocoddyl_plotter
-# except:
-#     pass
+try:
+    import crocoddyl_plotter
+except:
+    pass
 
 
 class ControllerImpl(ControllerImplBase):
@@ -111,13 +111,13 @@ class ControllerImpl(ControllerImplBase):
         self._first_call = True
         self._ocp_res_is_none = True
 
-        # plotter_cfg = cfg["cost_plotter"]
-        # if plotter_cfg["use_cost_plotter"]:
-        #     self._use_cost_plotter = True
-        #     self._iteration_counter = 0
-        #     self._cost_plotter_server = crocoddyl_plotter.CrocoddylPlotterServer(
-        #         plotter_cfg["cost_plotter_url"]
-        #     )
+        plotter_cfg = cfg["cost_plotter"]
+        if plotter_cfg["use_cost_plotter"]:
+            self._use_cost_plotter = True
+            self._iteration_counter = 0
+            self._cost_plotter_server = crocoddyl_plotter.CrocoddylPlotterServer(
+                plotter_cfg["cost_plotter_url"]
+            )
 
     def mpc_input_cb(self, msg: MpcInputArray):
         for mpc_input in msg.inputs:
@@ -217,9 +217,9 @@ class ControllerImpl(ControllerImplBase):
         return ocp_res.feed_forward_terms[0] - tau_g
 
     def on_post_update(self) -> None:
-        # if self._use_cost_plotter and self._iteration_counter % 100:
-        #     self._cost_plotter_server.send(
-        #         self.mpc._ocp._solver.problem, self._iteration_counter
-        #     )
-        # self._iteration_counter += 1
+        if self._use_cost_plotter and self._iteration_counter % 100:
+            self._cost_plotter_server.send(
+                self.mpc._ocp._solver.problem, self._iteration_counter
+            )
+        self._iteration_counter += 1
         self.mpc.update_references()
